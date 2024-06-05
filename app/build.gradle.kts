@@ -74,4 +74,5 @@ dependencies {
     implementation("com.firebaseui:firebase-ui-storage:7.2.0")
     implementation("com.github.skydoves:landscapist-glide:1.3.7")
     implementation("com.google.mlkit:object-detection:17.0.1")
+
 }

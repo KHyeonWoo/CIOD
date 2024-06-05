@@ -1,15 +1,17 @@
 package com.khw.ciod
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,9 +21,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,9 +38,16 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.ktx.Firebase
@@ -47,7 +58,7 @@ import com.skydoves.landscapist.glide.GlideImage
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+//        enableEdgeToEdge()
         setContent {
             CIODTheme {
                 MainScreen()
@@ -55,49 +66,173 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
     @Composable
     fun MainScreen() {
-        var topIndex by remember { mutableIntStateOf(0) }
-        var pantsIndex by remember { mutableIntStateOf(0) }
-        var successUpload by remember { mutableStateOf(false) }
+        var clickedTop by remember { mutableStateOf<String?>(null) }
+        var clickedPants by remember { mutableStateOf<String?>(null) }
 
         Row(modifier = Modifier.fillMaxSize()) {
-            Column(modifier = Modifier
-                .fillMaxHeight()
-                .weight(6f)) {
-                Column(modifier = Modifier.weight(5f)) {
-                    ImageSection("상의", topIndex, "topimage", successUpload, onUpload = {
-                        topIndex++
-                        successUpload = !successUpload
-                    })
-                }
-                Column(modifier = Modifier.weight(5f)) {
-                    ImageSection("하의", pantsIndex, "pantsimage", successUpload, onUpload = {
-                        pantsIndex++
-                        successUpload = !successUpload
-                    })
-                }
-            }
+            Closet(
+                modifier = Modifier.weight(6f),
+                onTopImageClick = { clickedTop = it },
+                onPantsImageClick = { clickedPants = it }
+            )
+            Divider(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(1.dp)
+            )
+            Character(Modifier.weight(4f), clickedTop, clickedPants,
+                {
+                    clickedTop = null
+                },
+                {
+                    clickedPants = null
+                })
+        }
+    }
 
-            Spacer(modifier = Modifier.weight(4f))
+    @Composable
+    fun Closet(
+        modifier: Modifier,
+        onTopImageClick: (String) -> Unit,
+        onPantsImageClick: (String) -> Unit
+    ) {
+        var successUpload by remember { mutableStateOf(false) }
+
+        Column(
+            modifier = modifier
+                .fillMaxHeight()
+        ) {
+            ImageSection(
+                modifier = Modifier.weight(5f),
+                label = "상의",
+                category = "topimage",
+                successUpload = successUpload,
+                onUpload = {
+                    successUpload = !successUpload
+                },
+                onImageClick = onTopImageClick
+            )
+            Divider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+            )
+            ImageSection(
+                modifier = Modifier.weight(5f),
+                label = "하의",
+                category = "pantsimage",
+                successUpload = successUpload,
+                onUpload = {
+                    successUpload = !successUpload
+                },
+                onImageClick = onPantsImageClick
+            )
+        }
+    }
+
+    @Composable
+    private fun Character(
+        modifier: Modifier,
+        clickedTop: String?,
+        clickedPants: String?,
+        topOnClick: () -> Unit,
+        pantsOnClick: () -> Unit
+    ) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.character), contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds
+            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                Spacer(modifier = Modifier.weight(5f))
+
+                clickedTop?.let { topUri ->
+                    GlideImageView(
+                        topUri, modifier = Modifier.weight(10f)
+                    ) { topOnClick() }
+                } ?: Spacer(modifier = Modifier.weight(10f))
+
+                clickedPants?.let { pantsUri ->
+                    GlideImageView(
+                        pantsUri, modifier = Modifier.weight(13f)
+                    ) { pantsOnClick() }
+                } ?: Spacer(modifier = Modifier.weight(13f))
+
+                Spacer(modifier = Modifier.weight(2f))
+            }
+            Button(modifier = Modifier.align(Alignment.BottomCenter), onClick = {
+//                intent = Intent(this@MainActivity, CharacterActivity::class.java)
+//                StartActivity(intent)
+            }) {
+
+            }
+        }
+
+    }
+
+    private @Composable
+    fun GlideImageView(item: String, modifier: Modifier, topOnClick: () -> Unit) {
+
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+        ) {
+            Divider(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.White
+            )
+            GlideImage(
+                imageModel = item,
+                contentDescription = "Top Image",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable {
+                        topOnClick()
+                    },
+                contentScale = ContentScale.FillBounds
+            )
         }
     }
 
     @Composable
     fun ImageSection(
+        modifier: Modifier = Modifier,
         label: String,
-        index: Int,
         category: String,
         successUpload: Boolean,
-        onUpload: () -> Unit
+        onUpload: () -> Unit,
+        onImageClick: (String) -> Unit
     ) {
-        Column {
+        var idx by remember {
+            mutableIntStateOf(-1)
+        }
+        Column(modifier = modifier) {
             Row {
-                Text(text = label)
-                GalleryUploadButton(index, category, onUpload)
+                Text(
+                    text = label, modifier = Modifier
+                        .align(Alignment.CenterVertically)
+                        .padding(start = 8.dp),
+                    style = TextStyle(
+                        color = Color.Blue,
+                        fontSize = 24.sp,
+                        FontWeight.Bold
+                    )
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                GalleryUploadButton(idx + 1, category, onUpload)
             }
-            ImageGrid(category, successUpload)
+            Divider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+            )
+            ImageGrid(category, successUpload, onImageClick) { idx = it }
         }
     }
 
@@ -110,7 +245,7 @@ class MainActivity : ComponentActivity() {
             }
 
         Button(onClick = { launcher.launch("image/*") }) {
-            Text(text = "갤러리")
+            Text(text = "추가")
         }
 
         imageUri?.let { uri ->
@@ -131,22 +266,38 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun ImageGrid(category: String, successUpload: Boolean) {
+    fun ImageGrid(
+        category: String,
+        successUpload: Boolean,
+        onImageClick: (String) -> Unit,
+        returnIdx: (Int) -> Unit
+    ) {
         val storageRef = Firebase.storage.reference.child(category)
         val items = remember { mutableStateListOf<String>() }
-
+        val idxList = remember { mutableListOf(-1) }
+        var num by remember { mutableStateOf(0) }
         LaunchedEffect(successUpload) {
             items.clear()
             storageRef.listAll().addOnSuccessListener {
-                for (item in it.items) {
-                    item.downloadUrl.addOnSuccessListener { uri ->
+                it.items.forEach { clothRef ->
+                    clothRef.downloadUrl.addOnSuccessListener { uri ->
                         items.add(uri.toString())
                     }
+                    for (char in clothRef.name) {
+                        if (char in '0'..'9') {
+                            num = num * 10 + char.toString().toInt()
+                        }
+                    }
+                    idxList.add(num)
                 }
             }
         }
-
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        returnIdx(idxList.max())
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(top = 4.dp, start = 2.dp)
+        ) {
             items.chunked(3).forEach { rowItems ->
                 Row(modifier = Modifier.fillMaxWidth()) {
                     rowItems.forEach { item ->
@@ -154,7 +305,11 @@ class MainActivity : ComponentActivity() {
                             GlideImage(
                                 imageModel = item,
                                 contentDescription = "Image",
-                                modifier = Modifier.size(80.dp)
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clickable {
+                                        onImageClick(item)
+                                    }
                             )
                         }
                     }
@@ -176,13 +331,19 @@ class MainActivity : ComponentActivity() {
                     tonalElevation = 24.dp
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Image(
-                            painter = rememberAsyncImagePainter(uri),
-                            contentDescription = null,
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(400.dp)
-                        )
+                        ) {
+                            Image(
+                                painter = rememberAsyncImagePainter(uri),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(400.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(modifier = Modifier.fillMaxWidth()) {
