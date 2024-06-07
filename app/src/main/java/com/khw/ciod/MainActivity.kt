@@ -84,18 +84,30 @@ class MainActivity : ComponentActivity() {
                     .fillMaxHeight()
                     .width(1.dp)
             )
+            var isPopup by remember { mutableStateOf(false) }
             Character(Modifier.weight(4f), clickedTop, clickedPants, clickedShoes,
+                {
+                    isPopup = true
+                },
+                {
+                    isPopup = true
+                    clickedPants = null
+                },
+                {
+                    isPopup = true
+                    clickedShoes = null
+                })
+            ImagePopup(isPopup, clickedTop,
                 {
                     clickedTop = null
                 },
                 {
-                    clickedPants = null
-                },
-                {
-                    clickedShoes = null
-                })
+                    isPopup = false
+                }
+            )
         }
     }
+
 
     @Composable
     fun Closet(
@@ -155,7 +167,7 @@ class MainActivity : ComponentActivity() {
 
 
     private @Composable
-    fun GlideImageView(item: String, modifier: Modifier, topOnClick: () -> Unit) {
+    fun GlideImageView(item: String, modifier: Modifier, imageOnClick: () -> Unit) {
 
         Box(
             modifier = modifier
@@ -167,11 +179,11 @@ class MainActivity : ComponentActivity() {
             )
             GlideImage(
                 imageModel = item,
-                contentDescription = "Top Image",
+                contentDescription = "Image",
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable {
-                        topOnClick()
+                        imageOnClick()
                     },
                 contentScale = ContentScale.FillBounds
             )
@@ -229,7 +241,7 @@ class MainActivity : ComponentActivity() {
         imageUri?.let { uri ->
             val context = LocalContext.current
             var showDialog by remember { mutableStateOf(true) }
-            ImagePopup(
+            ImageUploadPopup(
                 showDialog = showDialog,
                 upLoad = {
                     imageUpload(context, category, index, uri, onUpload)
@@ -264,9 +276,30 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(context, "사진 업로드 실패", Toast.LENGTH_SHORT).show()
         }
     }
+    private fun imageDelete(
+        context: Context,
+        category: String,
+        index: Int,
+        uri: Uri,
+        onUpload: () -> Unit
+    ) {
+        val storageRef = Firebase.storage.getReference(category)
+        val fileName = "$category$index"
+        val mountainsRef = storageRef.child("$fileName.png")
+
+        val uploadTask = mountainsRef.putFile(uri)
+        uploadTask.addOnSuccessListener {
+            Toast.makeText(context, "사진 업로드 성공", Toast.LENGTH_SHORT).show()
+            onUpload()
+        }.addOnProgressListener {
+            Toast.makeText(context, "사진 업로드 중", Toast.LENGTH_SHORT).show()
+        }.addOnFailureListener {
+            Toast.makeText(context, "사진 업로드 실패", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     @Composable
-    fun ImagePopup(showDialog: Boolean, upLoad: () -> Unit, cancel: () -> Unit, uri: Uri) {
+    fun ImageUploadPopup(showDialog: Boolean, upLoad: () -> Unit, cancel: () -> Unit, uri: Uri) {
         if (showDialog) {
             Dialog(onDismissRequest = { }) {
                 Surface(
@@ -423,4 +456,56 @@ class MainActivity : ComponentActivity() {
 
     }
 
+    private @Composable
+    fun ImagePopup(showDialog: Boolean, item: String?, takeOff: () -> Unit, cancel: () -> Unit) {
+        if (showDialog) {
+            Dialog(onDismissRequest = { }) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    tonalElevation = 24.dp
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        if (item != null) {
+                            GlideImage(
+                                imageModel = item,
+                                contentDescription = "Image",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(660.dp),
+                                contentScale = ContentScale.FillBounds
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Button(onClick = {
+
+                            }) {
+                                Text(text = "❤️")
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            Button(onClick = {
+                                takeOff()
+                                cancel()
+                            }) {
+                                Text(text = "벗기기")
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            Button(onClick = {
+
+                            }) {
+                                Text(text = "삭제 $item")
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            Button(onClick = {
+                                cancel()
+                            }) {
+                                Text(text = "취소")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

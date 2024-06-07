@@ -7,7 +7,7 @@ import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface FavoriteDao {
+interface FavoriteClothesDao {
     @Query(
         "SELECT * FROM Favorite WHERE category = :category"
     )
