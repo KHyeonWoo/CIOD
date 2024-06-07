@@ -10,11 +10,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
@@ -33,6 +37,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
@@ -50,6 +55,7 @@ class CharacterActivity : ComponentActivity() {
     private fun Character() {
         val topItems = remember { mutableStateListOf<Uri>() }
         val pantsItems = remember { mutableStateListOf<Uri>() }
+        val shoesItems = remember { mutableStateListOf<Uri>() }
 
         LaunchedEffect(Unit) {
             downloadImage("topimage") {
@@ -57,6 +63,9 @@ class CharacterActivity : ComponentActivity() {
             }
             downloadImage("pantsimage") {
                 pantsItems.add(it)
+            }
+            downloadImage("shoesimage") {
+                shoesItems.add(it)
             }
         }
 
@@ -69,15 +78,23 @@ class CharacterActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.FillBounds
             )
-            Column(modifier = Modifier.fillMaxSize()) {
-                Spacer(modifier = Modifier.weight(6f))
-                if (topItems.isNotEmpty()) {
-                    ClothDragBox(Modifier.weight(12f), topItems)
+            Row {
+                Divider(modifier = Modifier.weight(1f).fillMaxSize(), color = Color.White)
+                Column(modifier = Modifier.fillMaxSize()
+                    .weight(3f))
+                {
+                    Spacer(modifier = Modifier.weight(6f))
+                    if (topItems.isNotEmpty()) {
+                        ClothDragBox(Modifier.weight(12f), topItems)
+                    }
+                    if (pantsItems.isNotEmpty()) {
+                        ClothDragBox(Modifier.weight(13f), pantsItems)
+                    }
+                    if (shoesItems.isNotEmpty()) {
+                        ClothDragBox(Modifier.weight(2f), shoesItems)
+                    }
                 }
-                if (pantsItems.isNotEmpty()) {
-                    ClothDragBox(Modifier.weight(13f), pantsItems)
-                }
-                Spacer(modifier = Modifier.weight(2f))
+                Divider(modifier = Modifier.weight(1f).fillMaxSize(), color = Color.White)
             }
 
             val mContext = LocalContext.current
@@ -108,10 +125,9 @@ class CharacterActivity : ComponentActivity() {
     fun ClothDragBox(modifier: Modifier, topItems: List<Uri>) {
         var direction by remember { mutableIntStateOf(-1) }
         var offsetX by remember { mutableFloatStateOf(0f) }
-        var topIdx by remember { mutableIntStateOf(0) }
+        var clothIdx by remember { mutableIntStateOf(0) }
         Box(
             modifier = modifier
-                .fillMaxWidth()
                 .pointerInput(Unit) {
 
                     detectDragGestures(
@@ -138,15 +154,15 @@ class CharacterActivity : ComponentActivity() {
                             when (direction) {
                                 0 -> {
                                     if (offsetX > 300) {
-                                        topIdx--
-                                        topIdx %= topItems.size
-                                        if (topIdx < 0) {
-                                            topIdx = topItems.size - 1
+                                        clothIdx--
+                                        clothIdx %= topItems.size
+                                        if (clothIdx < 0) {
+                                            clothIdx = topItems.size - 1
                                         }
                                         Toast
                                             .makeText(
                                                 this@CharacterActivity,
-                                                "총 ${topItems.size}개 : ${topIdx + 1}",
+                                                "총 ${topItems.size}개 : ${clothIdx + 1}",
                                                 Toast.LENGTH_SHORT
                                             )
                                             .show()
@@ -157,12 +173,12 @@ class CharacterActivity : ComponentActivity() {
                                 1 -> {
                                     if (offsetX < -300) {
 
-                                        topIdx++
-                                        topIdx %= topItems.size
+                                        clothIdx++
+                                        clothIdx %= topItems.size
                                         Toast
                                             .makeText(
                                                 this@CharacterActivity,
-                                                "총 ${topItems.size}개 : ${topIdx + 1}",
+                                                "총 ${topItems.size}개 : ${clothIdx + 1}",
                                                 Toast.LENGTH_SHORT
                                             )
                                             .show()
@@ -180,9 +196,10 @@ class CharacterActivity : ComponentActivity() {
             )
 
             Image(
-                painter = rememberAsyncImagePainter(topItems[topIdx]),
+                painter = rememberAsyncImagePainter(topItems[clothIdx]),
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds
             )
         }
 

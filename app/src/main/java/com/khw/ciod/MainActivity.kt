@@ -51,9 +51,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.ktx.storage
 import com.khw.ciod.ui.theme.CIODTheme
 import com.skydoves.landscapist.glide.GlideImage
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.tasks.await
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,16 +72,31 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun MainScreen() {
-        var clickedTop by remember { mutableStateOf<String?>(null) }
-        var clickedPants by remember { mutableStateOf<String?>(null) }
-        var clickedShoes by remember { mutableStateOf<String?>(null) }
+        var successUpload by remember { mutableStateOf(false) }
+        var clickedTopRef by remember { mutableStateOf<StorageReference?>(null) }
+        var clickedTopUri by remember { mutableStateOf<String?>(null) }
+        var clickedPantsRef by remember { mutableStateOf<StorageReference?>(null) }
+        var clickedPantsUri by remember { mutableStateOf<String?>(null) }
+        var clickedShoesRef by remember { mutableStateOf<StorageReference?>(null) }
+        var clickedShoesUri by remember { mutableStateOf<String?>(null) }
 
         Row(modifier = Modifier.fillMaxSize()) {
             Closet(
                 modifier = Modifier.weight(6f),
-                onTopImageClick = { clickedTop = it },
-                onPantsImageClick = { clickedPants = it },
-                onShoesImageClick = { clickedShoes = it }
+                successUpload,
+                { successUpload = !successUpload },
+                onTopImageClick = { clickedRef: StorageReference, clickedUri: String ->
+                    clickedTopRef = clickedRef
+                    clickedTopUri = clickedUri
+                },
+                onPantsImageClick = { clickedRef: StorageReference, clickedUri: String ->
+                    clickedPantsRef = clickedRef
+                    clickedPantsUri = clickedUri
+                },
+                onShoesImageClick = { clickedRef: StorageReference, clickedUri: String ->
+                    clickedShoesRef = clickedRef
+                    clickedShoesUri = clickedUri
+                }
             )
             Divider(
                 modifier = Modifier
@@ -85,26 +104,33 @@ class MainActivity : ComponentActivity() {
                     .width(1.dp)
             )
             var isPopup by remember { mutableStateOf(false) }
-            Character(Modifier.weight(4f), clickedTop, clickedPants, clickedShoes,
+            Character(Modifier.weight(4f), clickedTopUri, clickedPantsUri, clickedShoesUri,
                 {
                     isPopup = true
                 },
                 {
                     isPopup = true
-                    clickedPants = null
+                    clickedPantsUri = null
                 },
                 {
                     isPopup = true
-                    clickedShoes = null
+                    clickedShoesUri = null
                 })
-            ImagePopup(isPopup, clickedTop,
-                {
-                    clickedTop = null
-                },
-                {
-                    isPopup = false
-                }
-            )
+
+            clickedTopRef?.let { clickedRef ->
+                ImagePopup(isPopup, clickedTopUri, clickedRef,
+                    {
+                        clickedTopRef = null
+                        clickedTopUri = null
+                    },
+                    {
+                        isPopup = false
+                    },
+                    {
+                        successUpload = !successUpload
+                    }
+                )
+            }
         }
     }
 
@@ -112,11 +138,12 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun Closet(
         modifier: Modifier,
-        onTopImageClick: (String) -> Unit,
-        onPantsImageClick: (String) -> Unit,
-        onShoesImageClick: (String) -> Unit
+        successUpload: Boolean,
+        successUploadEvent: () -> Unit,
+        onTopImageClick: (StorageReference, String) -> Unit,
+        onPantsImageClick: (StorageReference, String) -> Unit,
+        onShoesImageClick: (StorageReference, String) -> Unit
     ) {
-        var successUpload by remember { mutableStateOf(false) }
 
         Column(
             modifier = modifier
@@ -128,7 +155,7 @@ class MainActivity : ComponentActivity() {
                 category = "topimage",
                 successUpload = successUpload,
                 onUpload = {
-                    successUpload = !successUpload
+                    successUploadEvent()
                 },
                 onImageClick = onTopImageClick
             )
@@ -143,7 +170,7 @@ class MainActivity : ComponentActivity() {
                 category = "pantsimage",
                 successUpload = successUpload,
                 onUpload = {
-                    successUpload = !successUpload
+                    successUploadEvent()
                 },
                 onImageClick = onPantsImageClick
             )
@@ -158,7 +185,7 @@ class MainActivity : ComponentActivity() {
                 category = "shoesimage",
                 successUpload = successUpload,
                 onUpload = {
-                    successUpload = !successUpload
+                    successUploadEvent()
                 },
                 onImageClick = onShoesImageClick
             )
@@ -197,7 +224,7 @@ class MainActivity : ComponentActivity() {
         category: String,
         successUpload: Boolean,
         onUpload: () -> Unit,
-        onImageClick: (String) -> Unit
+        onImageClick: (StorageReference, String) -> Unit
     ) {
         var idx by remember {
             mutableIntStateOf(-1)
@@ -276,25 +303,15 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(context, "사진 업로드 실패", Toast.LENGTH_SHORT).show()
         }
     }
+
     private fun imageDelete(
         context: Context,
-        category: String,
-        index: Int,
-        uri: Uri,
-        onUpload: () -> Unit
+        desertRef: StorageReference
     ) {
-        val storageRef = Firebase.storage.getReference(category)
-        val fileName = "$category$index"
-        val mountainsRef = storageRef.child("$fileName.png")
-
-        val uploadTask = mountainsRef.putFile(uri)
-        uploadTask.addOnSuccessListener {
-            Toast.makeText(context, "사진 업로드 성공", Toast.LENGTH_SHORT).show()
-            onUpload()
-        }.addOnProgressListener {
-            Toast.makeText(context, "사진 업로드 중", Toast.LENGTH_SHORT).show()
+        desertRef.delete().addOnSuccessListener {
+            Toast.makeText(context, "$desertRef 사진 삭제 성공", Toast.LENGTH_SHORT).show()
         }.addOnFailureListener {
-            Toast.makeText(context, "사진 업로드 실패", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "사진 삭제 실패", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -344,46 +361,61 @@ class MainActivity : ComponentActivity() {
     fun ImageGrid(
         category: String,
         successUpload: Boolean,
-        onImageClick: (String) -> Unit,
+        onImageClick: (StorageReference, String) -> Unit,
         returnIdx: (Int) -> Unit
     ) {
         val storageRef = Firebase.storage.reference.child(category)
-        val items = remember { mutableStateListOf<String>() }
+        val itemsRef = remember { mutableStateListOf<StorageReference>() }
+        val itemsUri = remember { mutableStateListOf<String>() }
         val idxList = remember { mutableListOf(-1) }
-        var num by remember { mutableStateOf(0) }
+        var num by remember { mutableIntStateOf(0) }
+
         LaunchedEffect(successUpload) {
-            items.clear()
-            storageRef.listAll().addOnSuccessListener {
-                it.items.forEach { clothRef ->
-                    clothRef.downloadUrl.addOnSuccessListener { uri ->
-                        items.add(uri.toString())
-                    }
-                    for (char in clothRef.name) {
-                        if (char in '0'..'9') {
-                            num = num * 10 + char.toString().toInt()
+            itemsRef.clear()
+            itemsUri.clear()
+
+            val listResult = storageRef.listAll().await()
+
+            coroutineScope {
+                val downloadTasks = listResult.items.map { clothRef ->
+                    async {
+                        try {
+                            val uri = clothRef.downloadUrl.await().toString()
+                            itemsRef.add(clothRef)
+                            itemsUri.add(uri)
+                            for (char in clothRef.name) {
+                                if (char in '0'..'9') {
+                                    num = num * 10 + char.toString().toInt()
+                                }
+                            }
+                            idxList.add(num)
+                            num = 0
+                        } catch (e: Exception) {
+                            // Handle exceptions if needed
                         }
                     }
-                    idxList.add(num)
                 }
+                downloadTasks.forEach { it.await() }
             }
+
+            returnIdx(idxList.max())
         }
-        returnIdx(idxList.max())
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
                 .padding(top = 4.dp, start = 2.dp)
         ) {
-            items.chunked(3).forEach { rowItems ->
+            (itemsRef zip itemsUri).chunked(3).forEach { item ->
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    rowItems.forEach { item ->
+                    item.forEach {
                         Column {
                             GlideImage(
-                                imageModel = item,
+                                imageModel = it.second,
                                 contentDescription = "Image",
                                 modifier = Modifier
                                     .size(80.dp)
                                     .clickable {
-                                        onImageClick(item)
+                                        onImageClick(it.first, it.second)
                                     }
                             )
                         }
@@ -391,7 +423,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            if (items.isEmpty()) {
+            if (itemsUri.isEmpty()) {
                 Text(text = "Loading image...", modifier = Modifier.padding(16.dp))
             }
         }
@@ -411,9 +443,14 @@ class MainActivity : ComponentActivity() {
             modifier = modifier
                 .fillMaxSize()
         ) {
+            val mContext = LocalContext.current
             Image(
                 painter = painterResource(id = R.drawable.character), contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable {
+                        mContext.startActivity(Intent(mContext, CharacterActivity::class.java))
+                    },
                 contentScale = ContentScale.FillBounds
             )
             Column(modifier = Modifier.fillMaxSize()) {
@@ -440,24 +477,19 @@ class MainActivity : ComponentActivity() {
                     ) { shoesOnClick() }
                 } ?: Spacer(modifier = Modifier.weight(2f))
             }
-
-            val mContext = LocalContext.current
-
-            Button(
-                onClick = {
-                    mContext.startActivity(Intent(mContext, CharacterActivity::class.java))
-                },
-                modifier = Modifier.align(alignment = Alignment.TopEnd)
-            ) {
-                Text("드레스룸")
-            }
-
         }
 
     }
 
     private @Composable
-    fun ImagePopup(showDialog: Boolean, item: String?, takeOff: () -> Unit, cancel: () -> Unit) {
+    fun ImagePopup(
+        showDialog: Boolean,
+        item: String?,
+        clickedTopRef: StorageReference,
+        takeOff: () -> Unit,
+        cancel: () -> Unit,
+        delete: () -> Unit
+    ) {
         if (showDialog) {
             Dialog(onDismissRequest = { }) {
                 Surface(
@@ -478,6 +510,7 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(modifier = Modifier.fillMaxWidth()) {
+                            val context = LocalContext.current
                             Button(onClick = {
 
                             }) {
@@ -492,9 +525,12 @@ class MainActivity : ComponentActivity() {
                             }
                             Spacer(modifier = Modifier.weight(1f))
                             Button(onClick = {
-
+                                imageDelete(context, clickedTopRef)
+                                delete()
+                                takeOff()
+                                cancel()
                             }) {
-                                Text(text = "삭제 $item")
+                                Text(text = "삭제")
                             }
                             Spacer(modifier = Modifier.weight(1f))
                             Button(onClick = {
