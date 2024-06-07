@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-@Database(entities = [Favorite::class], version = 1)
+@Database(entities = [OOTD::class], version = 1)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun FavoriteClothesDao(): FavoriteClothesDao
 

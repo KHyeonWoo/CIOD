@@ -4,18 +4,20 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FavoriteClothesDao {
     @Query(
-        "SELECT * FROM Favorite WHERE category = :category"
+        "SELECT * FROM OOTD WHERE date = :today"
     )
-    fun getRank(category: String): Flow<List<Favorite>>
+    fun getOOTD(today: String): OOTD
 
     @Insert
-    fun insertAll(vararg users: Favorite)
+    fun insertAll(vararg favoriteClothes: OOTD)
 
     @Delete
-    fun delete(user: Favorite)
+    fun delete(user: OOTD)
+
 }

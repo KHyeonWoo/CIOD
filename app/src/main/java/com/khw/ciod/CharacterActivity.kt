@@ -9,38 +9,34 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
+import java.time.LocalDate
+import java.time.YearMonth
 import kotlin.math.abs
 
 class CharacterActivity : ComponentActivity() {
@@ -73,39 +69,64 @@ class CharacterActivity : ComponentActivity() {
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.character), contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.FillBounds
-            )
-            Row {
-                Divider(modifier = Modifier.weight(1f).fillMaxSize(), color = Color.White)
-                Column(modifier = Modifier.fillMaxSize()
-                    .weight(3f))
-                {
-                    Spacer(modifier = Modifier.weight(6f))
-                    if (topItems.isNotEmpty()) {
-                        ClothDragBox(Modifier.weight(12f), topItems)
-                    }
-                    if (pantsItems.isNotEmpty()) {
-                        ClothDragBox(Modifier.weight(13f), pantsItems)
-                    }
-                    if (shoesItems.isNotEmpty()) {
-                        ClothDragBox(Modifier.weight(2f), shoesItems)
-                    }
-                }
-                Divider(modifier = Modifier.weight(1f).fillMaxSize(), color = Color.White)
-            }
+            CharacterBackground()
+            CharacterFitClothes(topItems, pantsItems, shoesItems)
+            CloseButton(Modifier.align(alignment = Alignment.BottomEnd))
+        }
+    }
 
-            val mContext = LocalContext.current
-            Button(
-                onClick = {
-                    mContext.startActivity(Intent(mContext, MainActivity::class.java))
-                },
-                modifier = Modifier.align(alignment = Alignment.BottomEnd)
+    @Composable
+    fun CharacterBackground() {
+        Image(
+            painter = painterResource(id = R.drawable.character), contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
+        )
+    }
+
+    @Composable
+    fun CharacterFitClothes(topItems: List<Uri>, pantsItems: List<Uri>, shoesItems: List<Uri>) {
+        Row {
+            Divider(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize(), color = Color.White
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(3f)
             ) {
-                Text("닫기")
+                Spacer(modifier = Modifier.weight(6f))
+                if (topItems.isNotEmpty()) {
+                    ClothDragBox(Modifier.weight(12f), topItems)
+                }
+                if (pantsItems.isNotEmpty()) {
+                    ClothDragBox(Modifier.weight(13f), pantsItems)
+                }
+                if (shoesItems.isNotEmpty()) {
+                    ClothDragBox(Modifier.weight(2f), shoesItems)
+                }
             }
+            Divider(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize(), color = Color.White
+            )
+        }
+    }
+
+
+    @Composable
+    fun CloseButton(modifier: Modifier) {
+        val mContext = LocalContext.current
+        Button(
+            onClick = {
+                mContext.startActivity(Intent(mContext, ClosetActivity::class.java))
+            },
+            modifier = modifier
+        ) {
+            Text(text = "닫기")
         }
     }
 
@@ -129,7 +150,6 @@ class CharacterActivity : ComponentActivity() {
         Box(
             modifier = modifier
                 .pointerInput(Unit) {
-
                     detectDragGestures(
                         onDrag = { change, dragAmount ->
                             change.consume()
@@ -202,6 +222,6 @@ class CharacterActivity : ComponentActivity() {
                 contentScale = ContentScale.FillBounds
             )
         }
-
     }
+
 }
