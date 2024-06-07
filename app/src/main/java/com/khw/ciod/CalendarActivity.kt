@@ -83,11 +83,8 @@ class CalendarActivity : ComponentActivity() {
 
             CalendarWeekHeader()
 
-            var reLoad by remember {
-                mutableIntStateOf(0)
-            }
             CustomCalendarView(year, month) { day ->
-                CalendarOOTD(db, year, month, day, reLoad) { reLoad++ }
+                CalendarOOTD(db, year, month, day)
             }
         }
     }
@@ -106,8 +103,8 @@ class CalendarActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun CalendarOOTD(db: AppDatabase, year: Int, month: Int, day: Int, reLoad: Int, reLoadEvent: () -> Unit) {
-        var ootd by remember(reLoad) { mutableStateOf<OOTD?>(null) }
+    private fun CalendarOOTD(db: AppDatabase, year: Int, month: Int, day: Int) {
+        var ootd by remember { mutableStateOf<OOTD?>(null) }
         val coroutineScope = rememberCoroutineScope()
 
         LaunchedEffect(year, month, day) {
@@ -174,7 +171,7 @@ class CalendarActivity : ComponentActivity() {
                     )
 
                     if (openDialog) {
-                        CharacterFit(db, it, year, month, day, { openDialog = false }, {reLoadEvent})
+                        CharacterFit(db, it, year, month, day) { openDialog = false }
                     }
                 }
             } ?: Column {
@@ -185,7 +182,7 @@ class CalendarActivity : ComponentActivity() {
                     })
 
                 if (openDialog) {
-                    CharacterFit(db, null, year, month, day, { openDialog = false }, {reLoadEvent})
+                    CharacterFit(db, null, year, month, day) { openDialog = false }
                 }
             }
         }
@@ -335,8 +332,7 @@ class CalendarActivity : ComponentActivity() {
         year: Int,
         month: Int,
         day: Int,
-        close: () -> Unit,
-        reLoadEvent: () -> () -> Unit
+        close: () -> Unit
     ) {
         val topItems = remember { mutableStateListOf<Uri>() }
         val pantsItems = remember { mutableStateListOf<Uri>() }
@@ -388,7 +384,6 @@ class CalendarActivity : ComponentActivity() {
                             Button(
                                 onClick = {
                                     coroutineScope.launch(Dispatchers.IO) {
-
                                         db.FavoriteClothesDao().insertAll(
                                             OOTD(
                                                 LocalDate.of(year, month, day)
@@ -400,7 +395,6 @@ class CalendarActivity : ComponentActivity() {
                                         )
                                     }
                                     Toast.makeText(context, "OOTD 등록 성공", Toast.LENGTH_SHORT).show()
-                                    reLoadEvent()
                                     close()
                                 },
                                 modifier = Modifier
@@ -414,7 +408,6 @@ class CalendarActivity : ComponentActivity() {
                                         db.FavoriteClothesDao().delete(ootd)
                                     }
                                     Toast.makeText(context, "OOTD 삭제 성공", Toast.LENGTH_SHORT).show()
-                                    reLoadEvent()
                                     close()
                                 }) {
                                 Text(text = "삭제")
