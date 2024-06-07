@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.google.gms.google.services)
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -75,4 +76,7 @@ dependencies {
     implementation("com.github.skydoves:landscapist-glide:1.3.7")
     implementation("com.google.mlkit:object-detection:17.0.1")
 
+    val room_version = "2.6.1"
+    ksp("androidx.room:room-compiler:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
 }

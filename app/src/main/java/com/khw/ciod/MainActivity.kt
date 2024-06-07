@@ -70,24 +70,29 @@ class MainActivity : ComponentActivity() {
     fun MainScreen() {
         var clickedTop by remember { mutableStateOf<String?>(null) }
         var clickedPants by remember { mutableStateOf<String?>(null) }
+        var clickedShoes by remember { mutableStateOf<String?>(null) }
 
         Row(modifier = Modifier.fillMaxSize()) {
             Closet(
                 modifier = Modifier.weight(6f),
                 onTopImageClick = { clickedTop = it },
-                onPantsImageClick = { clickedPants = it }
+                onPantsImageClick = { clickedPants = it },
+                onShoesImageClick = { clickedShoes = it }
             )
             Divider(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(1.dp)
             )
-            Character(Modifier.weight(4f), clickedTop, clickedPants,
+            Character(Modifier.weight(4f), clickedTop, clickedPants, clickedShoes,
                 {
                     clickedTop = null
                 },
                 {
                     clickedPants = null
+                },
+                {
+                    clickedShoes = null
                 })
         }
     }
@@ -96,7 +101,8 @@ class MainActivity : ComponentActivity() {
     fun Closet(
         modifier: Modifier,
         onTopImageClick: (String) -> Unit,
-        onPantsImageClick: (String) -> Unit
+        onPantsImageClick: (String) -> Unit,
+        onShoesImageClick: (String) -> Unit
     ) {
         var successUpload by remember { mutableStateOf(false) }
 
@@ -105,7 +111,7 @@ class MainActivity : ComponentActivity() {
                 .fillMaxHeight()
         ) {
             ImageSection(
-                modifier = Modifier.weight(5f),
+                modifier = Modifier.weight(4f),
                 label = "상의",
                 category = "topimage",
                 successUpload = successUpload,
@@ -120,7 +126,7 @@ class MainActivity : ComponentActivity() {
                     .height(1.dp)
             )
             ImageSection(
-                modifier = Modifier.weight(5f),
+                modifier = Modifier.weight(4f),
                 label = "하의",
                 category = "pantsimage",
                 successUpload = successUpload,
@@ -129,52 +135,24 @@ class MainActivity : ComponentActivity() {
                 },
                 onImageClick = onPantsImageClick
             )
-        }
-    }
-
-    @Composable
-    private fun Character(
-        modifier: Modifier,
-        clickedTop: String?,
-        clickedPants: String?,
-        topOnClick: () -> Unit,
-        pantsOnClick: () -> Unit
-    ) {
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.character), contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.FillBounds
+            Divider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
             )
-            Column(modifier = Modifier.fillMaxSize()) {
-                Spacer(modifier = Modifier.weight(5f))
-
-                clickedTop?.let { topUri ->
-                    GlideImageView(
-                        topUri, modifier = Modifier.weight(10f)
-                    ) { topOnClick() }
-                } ?: Spacer(modifier = Modifier.weight(10f))
-
-                clickedPants?.let { pantsUri ->
-                    GlideImageView(
-                        pantsUri, modifier = Modifier.weight(13f)
-                    ) { pantsOnClick() }
-                } ?: Spacer(modifier = Modifier.weight(13f))
-
-                Spacer(modifier = Modifier.weight(2f))
-            }
-            Button(modifier = Modifier.align(Alignment.BottomCenter), onClick = {
-//                intent = Intent(this@MainActivity, CharacterActivity::class.java)
-//                StartActivity(intent)
-            }) {
-
-            }
+            ImageSection(
+                modifier = Modifier.weight(2f),
+                label = "신발",
+                category = "shoesimage",
+                successUpload = successUpload,
+                onUpload = {
+                    successUpload = !successUpload
+                },
+                onImageClick = onShoesImageClick
+            )
         }
-
     }
+
 
     private @Composable
     fun GlideImageView(item: String, modifier: Modifier, topOnClick: () -> Unit) {
@@ -265,6 +243,70 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun imageUpload(
+        context: Context,
+        category: String,
+        index: Int,
+        uri: Uri,
+        onUpload: () -> Unit
+    ) {
+        val storageRef = Firebase.storage.getReference(category)
+        val fileName = "$category$index"
+        val mountainsRef = storageRef.child("$fileName.png")
+
+        val uploadTask = mountainsRef.putFile(uri)
+        uploadTask.addOnSuccessListener {
+            Toast.makeText(context, "사진 업로드 성공", Toast.LENGTH_SHORT).show()
+            onUpload()
+        }.addOnProgressListener {
+            Toast.makeText(context, "사진 업로드 중", Toast.LENGTH_SHORT).show()
+        }.addOnFailureListener {
+            Toast.makeText(context, "사진 업로드 실패", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    @Composable
+    fun ImagePopup(showDialog: Boolean, upLoad: () -> Unit, cancel: () -> Unit, uri: Uri) {
+        if (showDialog) {
+            Dialog(onDismissRequest = { }) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    tonalElevation = 24.dp
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(400.dp)
+                        ) {
+                            Image(
+                                painter = rememberAsyncImagePainter(uri),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(400.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Button(onClick = {
+                                upLoad()
+                                cancel()
+                            }) {
+                                Text(text = "등록")
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            TextButton(onClick = { cancel() }) {
+                                Text(text = "취소")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @Composable
     fun ImageGrid(
         category: String,
@@ -323,66 +365,62 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun ImagePopup(showDialog: Boolean, upLoad: () -> Unit, cancel: () -> Unit, uri: Uri) {
-        if (showDialog) {
-            Dialog(onDismissRequest = { }) {
-                Surface(
-                    shape = MaterialTheme.shapes.medium,
-                    tonalElevation = 24.dp
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(400.dp)
-                        ) {
-                            Image(
-                                painter = rememberAsyncImagePainter(uri),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(400.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Button(onClick = {
-                                upLoad()
-                                cancel()
-                            }) {
-                                Text(text = "등록")
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            TextButton(onClick = { cancel() }) {
-                                Text(text = "취소")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun imageUpload(
-        context: Context,
-        category: String,
-        index: Int,
-        uri: Uri,
-        onUpload: () -> Unit
+    private fun Character(
+        modifier: Modifier,
+        clickedTop: String?,
+        clickedPants: String?,
+        clickedShoes: String?,
+        topOnClick: () -> Unit,
+        pantsOnClick: () -> Unit,
+        shoesOnClick: () -> Unit
     ) {
-        val storageRef = Firebase.storage.getReference(category)
-        val fileName = "$category$index"
-        val mountainsRef = storageRef.child("$fileName.png")
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.character), contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds
+            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                Spacer(modifier = Modifier.weight(5f))
 
-        val uploadTask = mountainsRef.putFile(uri)
-        uploadTask.addOnSuccessListener {
-            Toast.makeText(context, "사진 업로드 성공", Toast.LENGTH_SHORT).show()
-            onUpload()
-        }.addOnProgressListener {
-            Toast.makeText(context, "사진 업로드 중", Toast.LENGTH_SHORT).show()
-        }.addOnFailureListener {
-            Toast.makeText(context, "사진 업로드 실패", Toast.LENGTH_SHORT).show()
+                //상의
+                clickedTop?.let { topUri ->
+                    GlideImageView(
+                        topUri, modifier = Modifier.weight(10f)
+                    ) { topOnClick() }
+                } ?: Spacer(modifier = Modifier.weight(10f))
+
+                //하의
+                clickedPants?.let { pantsUri ->
+                    GlideImageView(
+                        pantsUri, modifier = Modifier.weight(13f)
+                    ) { pantsOnClick() }
+                } ?: Spacer(modifier = Modifier.weight(13f))
+
+                //신발
+                clickedShoes?.let { shoesUri ->
+                    GlideImageView(
+                        shoesUri, modifier = Modifier.weight(2f)
+                    ) { shoesOnClick() }
+                } ?: Spacer(modifier = Modifier.weight(2f))
+            }
+
+            val mContext = LocalContext.current
+
+            Button(
+                onClick = {
+                    mContext.startActivity(Intent(mContext, CharacterActivity::class.java))
+                },
+                modifier = Modifier.align(alignment = Alignment.TopEnd)
+            ) {
+                Text("드레스룸")
+            }
+
         }
+
     }
+
 }
