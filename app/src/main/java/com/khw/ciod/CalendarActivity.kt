@@ -1,6 +1,7 @@
 package com.khw.ciod
 
 import android.content.ContentValues
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -51,11 +52,16 @@ import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 import kotlin.math.abs
 
 class CalendarActivity : ComponentActivity() {
@@ -577,4 +583,9 @@ class CalendarActivity : ComponentActivity() {
             )
         }
     }
+
+    /**
+     * Helper class for performing image segmentation using the SubjectSegmentation API.
+     * This class encapsulates the functionality for obtaining foreground segmentation results from input images.
+     */
 }
