@@ -69,22 +69,27 @@ class CalendarActivity : ComponentActivity() {
     @Composable
     fun Calendar() {
         val currentDate = LocalDate.now()
-        val year by remember { mutableIntStateOf(currentDate.year) }
-        val month by remember { mutableIntStateOf(currentDate.monthValue) }
+        var year by remember { mutableIntStateOf(currentDate.year) }
+        var month by remember { mutableIntStateOf(currentDate.monthValue) }
         val context = LocalContext.current
         val db by remember { mutableStateOf(AppDatabase.getDatabase(context)) }
 
         Column(modifier = Modifier.fillMaxSize()) {
             CalendarHeader(year, month, onPreviousMonth = {
-                updateMonth(year, month, -1)
+                val (newYear, newMonth) = updateMonth(year, month, -1)
+                year = newYear
+                month = newMonth
             }, onNextMonth = {
-                updateMonth(year, month, 1)
+                val (newYear, newMonth) = updateMonth(year, month, 1)
+                year = newYear
+                month = newMonth
             })
 
             CalendarWeekHeader()
 
+            var reLoad by remember { mutableIntStateOf(0) }
             CustomCalendarView(year, month) { day ->
-                CalendarOOTD(db, year, month, day)
+                CalendarOOTD(db, year, month, day, reLoad) { reLoad++ }
             }
         }
     }
@@ -103,11 +108,18 @@ class CalendarActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun CalendarOOTD(db: AppDatabase, year: Int, month: Int, day: Int) {
+    private fun CalendarOOTD(
+        db: AppDatabase,
+        year: Int,
+        month: Int,
+        day: Int,
+        reLoad: Int,
+        reLoadEvent: () -> Unit
+    ) {
         var ootd by remember { mutableStateOf<OOTD?>(null) }
         val coroutineScope = rememberCoroutineScope()
 
-        LaunchedEffect(year, month, day) {
+        LaunchedEffect(year, month, day, reLoad) {
             coroutineScope.launch(Dispatchers.IO) {
                 ootd = db.FavoriteClothesDao().getOOTD(
                     LocalDate.of(year, month, day)
@@ -171,7 +183,15 @@ class CalendarActivity : ComponentActivity() {
                     )
 
                     if (openDialog) {
-                        CharacterFit(db, it, year, month, day) { openDialog = false }
+                        CharacterFit(
+                            db,
+                            it,
+                            year,
+                            month,
+                            day,
+                            { openDialog = false },
+                            { reLoadEvent() }
+                        )
                     }
                 }
             } ?: Column {
@@ -182,7 +202,10 @@ class CalendarActivity : ComponentActivity() {
                     })
 
                 if (openDialog) {
-                    CharacterFit(db, null, year, month, day) { openDialog = false }
+                    CharacterFit(
+                        db, null, year, month, day, { openDialog = false },
+                        { reLoadEvent() }
+                    )
                 }
             }
         }
@@ -332,7 +355,8 @@ class CalendarActivity : ComponentActivity() {
         year: Int,
         month: Int,
         day: Int,
-        close: () -> Unit
+        close: () -> Unit,
+        reLoadEvent: () -> Unit
     ) {
         val topItems = remember { mutableStateListOf<Uri>() }
         val pantsItems = remember { mutableStateListOf<Uri>() }
@@ -395,6 +419,7 @@ class CalendarActivity : ComponentActivity() {
                                         )
                                     }
                                     Toast.makeText(context, "OOTD 등록 성공", Toast.LENGTH_SHORT).show()
+                                    reLoadEvent()
                                     close()
                                 },
                                 modifier = Modifier
@@ -408,6 +433,7 @@ class CalendarActivity : ComponentActivity() {
                                         db.FavoriteClothesDao().delete(ootd)
                                     }
                                     Toast.makeText(context, "OOTD 삭제 성공", Toast.LENGTH_SHORT).show()
+                                    reLoadEvent()
                                     close()
                                 }) {
                                 Text(text = "삭제")
