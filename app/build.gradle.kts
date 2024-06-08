@@ -77,7 +77,8 @@ dependencies {
     implementation("com.github.skydoves:landscapist-glide:1.3.7")
     implementation("com.google.mlkit:object-detection:17.0.1")
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
-
+    implementation("com.google.accompanist:accompanist-pager:0.20.1")
+    implementation("com.google.accompanist:accompanist-pager-indicators:0.20.1")
 
     val room_version = "2.6.1"
     ksp("androidx.room:room-compiler:$room_version")

@@ -21,18 +21,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Divider
+import androidx.compose.material.Tab
+import androidx.compose.material.TabRow
+import androidx.compose.material.TabRowDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -46,6 +47,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,12 +56,15 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
+import com.google.accompanist.pager.ExperimentalPagerApi
+import com.google.accompanist.pager.HorizontalPager
+import com.google.accompanist.pager.pagerTabIndicatorOffset
+import com.google.accompanist.pager.rememberPagerState
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.ktx.storage
@@ -70,11 +75,12 @@ import com.khw.ciod.ui.theme.CIODTheme
 import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.time.LocalDate
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -86,6 +92,7 @@ class ClosetActivity : ComponentActivity() {
         setContent {
             CIODTheme {
                 MainScreen()
+
             }
         }
     }
@@ -100,33 +107,12 @@ class ClosetActivity : ComponentActivity() {
         var clickedShoesRef by remember { mutableStateOf<StorageReference?>(null) }
         var clickedShoesUri by remember { mutableStateOf<String?>(null) }
 
-        Row(modifier = Modifier.fillMaxSize()) {
-            Closet(
-                modifier = Modifier.weight(6f),
-                successUpload,
-                { successUpload = !successUpload },
-                onTopImageClick = { clickedRef: StorageReference, clickedUri: String ->
-                    clickedTopRef = clickedRef
-                    clickedTopUri = clickedUri
-                },
-                onPantsImageClick = { clickedRef: StorageReference, clickedUri: String ->
-                    clickedPantsRef = clickedRef
-                    clickedPantsUri = clickedUri
-                },
-                onShoesImageClick = { clickedRef: StorageReference, clickedUri: String ->
-                    clickedShoesRef = clickedRef
-                    clickedShoesUri = clickedUri
-                }
-            )
-            Divider(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(1.dp)
-            )
+        Column(modifier = Modifier.fillMaxSize()) {
+
             var isTopPopup by remember { mutableStateOf(false) }
             var isPantsPopup by remember { mutableStateOf(false) }
             var isShoesPopup by remember { mutableStateOf(false) }
-            Character(Modifier.weight(4f), clickedTopUri, clickedPantsUri, clickedShoesUri,
+            Character(Modifier.weight(7f), clickedTopUri, clickedPantsUri, clickedShoesUri,
                 {
                     isTopPopup = true
                 },
@@ -181,12 +167,27 @@ class ClosetActivity : ComponentActivity() {
                     }
                 )
             }
+            CategoryTapLayout(
+                Modifier.weight(3f), successUpload, { successUpload = !successUpload },
+                { clickedRef: StorageReference, clickedUri: String ->
+                    clickedTopRef = clickedRef
+                    clickedTopUri = clickedUri
+                },
+                onPantsImageClick = { clickedRef: StorageReference, clickedUri: String ->
+                    clickedPantsRef = clickedRef
+                    clickedPantsUri = clickedUri
+                },
+                onShoesImageClick = { clickedRef: StorageReference, clickedUri: String ->
+                    clickedShoesRef = clickedRef
+                    clickedShoesUri = clickedUri
+                }
+            )
         }
     }
 
-
+    @OptIn(ExperimentalPagerApi::class)
     @Composable
-    fun Closet(
+    fun CategoryTapLayout(
         modifier: Modifier,
         successUpload: Boolean,
         successUploadEvent: () -> Unit,
@@ -194,54 +195,91 @@ class ClosetActivity : ComponentActivity() {
         onPantsImageClick: (StorageReference, String) -> Unit,
         onShoesImageClick: (StorageReference, String) -> Unit
     ) {
-
-        Column(
+        Surface(
             modifier = modifier
-                .fillMaxHeight()
+                .fillMaxWidth(),
+            color = Color.White
         ) {
-            ImageSection(
-                modifier = Modifier.weight(4f),
-                label = "상의",
-                category = "topimage",
-                successUpload = successUpload,
-                onUpload = {
-                    successUploadEvent()
-                },
-                onImageClick = onTopImageClick
-            )
-            Divider(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-            )
-            ImageSection(
-                modifier = Modifier.weight(4f),
-                label = "하의",
-                category = "pantsimage",
-                successUpload = successUpload,
-                onUpload = {
-                    successUploadEvent()
-                },
-                onImageClick = onPantsImageClick
-            )
-            Divider(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-            )
-            ImageSection(
-                modifier = Modifier.weight(2f),
-                label = "신발",
-                category = "shoesimage",
-                successUpload = successUpload,
-                onUpload = {
-                    successUploadEvent()
-                },
-                onImageClick = onShoesImageClick
-            )
-        }
-    }
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center
+            ) {
 
+                val pages = listOf(
+                    R.drawable.category_top,
+                    R.drawable.category_pants,
+                    R.drawable.category_shoes
+                )
+                val pagerState = rememberPagerState()
+                val coroutineScope = rememberCoroutineScope()
+
+                TabRow(
+                    selectedTabIndex = pagerState.currentPage,
+                    indicator = { tabPositions ->
+                        TabRowDefaults.Indicator(
+                            Modifier.pagerTabIndicatorOffset(pagerState, tabPositions)
+                        )
+                    },
+                    backgroundColor = Color.Black,
+                    contentColor = Color.White
+                ) {
+                    pages.forEachIndexed { index, title ->
+                        Tab(
+                            text = {
+                                Image(
+                                    painter = painterResource(id = title),
+                                    contentDescription = "title",
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            },
+                            selected = pagerState.currentPage == index,
+                            onClick = {
+                                coroutineScope.launch {
+                                    pagerState.scrollToPage(index)
+                                }
+                            }
+                        )
+                    }
+                }
+
+                HorizontalPager(
+                    count = pages.size,
+                    state = pagerState,
+                ) { page ->
+                    if (page.toString() == "0") {
+                        ImageSection(
+                            category = "topimage",
+                            successUpload = successUpload,
+                            onUpload = {
+                                successUploadEvent()
+                            },
+                            onImageClick = onTopImageClick
+                        )
+                    } else if (page.toString() == "1") {
+                        ImageSection(
+                            category = "pantsimage",
+                            successUpload = successUpload,
+                            onUpload = {
+                                successUploadEvent()
+                            },
+                            onImageClick = onPantsImageClick
+                        )
+                    } else if (page.toString() == "2") {
+                        ImageSection(
+                            category = "shoesimage",
+                            successUpload = successUpload,
+                            onUpload = {
+                                successUploadEvent()
+                            },
+                            onImageClick = onShoesImageClick
+                        )
+                    }
+
+                }
+            }
+        }
+
+    }
 
     private @Composable
     fun GlideImageView(item: String, modifier: Modifier, imageOnClick: () -> Unit) {
@@ -250,10 +288,6 @@ class ClosetActivity : ComponentActivity() {
             modifier = modifier
                 .fillMaxSize()
         ) {
-//            Divider(
-//                modifier = Modifier.fillMaxSize(),
-//                color = Color.White
-//            )
             GlideImage(
                 imageModel = item,
                 contentDescription = "Image",
@@ -269,8 +303,6 @@ class ClosetActivity : ComponentActivity() {
 
     @Composable
     fun ImageSection(
-        modifier: Modifier = Modifier,
-        label: String,
         category: String,
         successUpload: Boolean,
         onUpload: () -> Unit,
@@ -279,32 +311,23 @@ class ClosetActivity : ComponentActivity() {
         var idx by remember {
             mutableIntStateOf(-1)
         }
-        Column(modifier = modifier) {
-            Row {
-                Text(
-                    text = label, modifier = Modifier
-                        .align(Alignment.CenterVertically)
-                        .padding(start = 8.dp),
-                    style = TextStyle(
-                        color = Color.Blue,
-                        fontSize = 24.sp,
-                        FontWeight.Bold
-                    )
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                GalleryUploadButton(idx + 1, category, onUpload)
-            }
-            Divider(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-            )
+        Box(modifier = Modifier.fillMaxSize()) {
             ImageGrid(category, successUpload, onImageClick) { idx = it }
+            GalleryUploadButton(
+                Modifier.align(
+                    Alignment.BottomEnd
+                ), idx + 1, category, onUpload
+            )
         }
     }
 
     @Composable
-    fun GalleryUploadButton(index: Int, category: String, onUpload: () -> Unit) {
+    fun GalleryUploadButton(
+        modifier: Modifier,
+        index: Int,
+        category: String,
+        onUpload: () -> Unit
+    ) {
 
         val context = LocalContext.current
 
@@ -331,10 +354,11 @@ class ClosetActivity : ComponentActivity() {
             })
 
 
-        Image(painter = painterResource(id = R.drawable.baseline_add_24),
+        Image(painter = painterResource(id = R.drawable.addicon),
             contentDescription = "add",
-            modifier = Modifier
-                .size(28.dp)
+            modifier = modifier
+                .size(62.dp)
+                .padding(end = 16.dp)
                 .clickable {
                     pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 })
@@ -523,7 +547,7 @@ class ClosetActivity : ComponentActivity() {
                 .verticalScroll(rememberScrollState())
                 .padding(top = 4.dp, start = 2.dp)
         ) {
-            (itemsRef zip itemsUri).chunked(3).forEach { item ->
+            (itemsRef zip itemsUri).chunked(5).forEach { item ->
                 Row(modifier = Modifier.fillMaxWidth()) {
                     item.forEach {
                         Column {
@@ -561,20 +585,25 @@ class ClosetActivity : ComponentActivity() {
             modifier = modifier
                 .fillMaxSize()
         ) {
-            val mContext = LocalContext.current
+            Image(
+                painter = painterResource(id = R.drawable.closetbackground),
+                contentDescription = "background",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds
+            )
+            Divider(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(104.dp),
+                color = Color(0xFFE5E1DC)
+            )
             Image(
                 painter = painterResource(id = R.drawable.character),
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clickable {
-                        mContext.startActivity(
-                            Intent(
-                                mContext,
-                                CalendarActivity::class.java
-                            )
-                        )
-                    },
+                    .padding(top = 16.dp, bottom = 24.dp),
                 contentScale = ContentScale.FillBounds
             )
             Column(modifier = Modifier.fillMaxSize()) {
@@ -601,11 +630,26 @@ class ClosetActivity : ComponentActivity() {
                     ) { shoesOnClick() }
                 } ?: Spacer(modifier = Modifier.weight(2f))
             }
-            Button(
-                onClick = { finish() },
-                modifier = Modifier.align(Alignment.TopEnd)
+            val mContext = LocalContext.current
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+
             ) {
-                Text(text = "X")
+                Image(painter = painterResource(id = R.drawable.calendaricon),
+                    contentDescription = "calendar",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable {
+                            mContext.startActivity(Intent(mContext, CalendarActivity::class.java))
+                        })
+                Text(
+                    text = LocalDate.now().month.toString()
+                        .substring(0, 3) + "  " + LocalDate.now().dayOfMonth.toString(),
+                    fontSize = 12.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
             }
         }
 
