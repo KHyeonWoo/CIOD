@@ -61,6 +61,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
+import com.canhub.cropper.CropImage
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.pagerTabIndicatorOffset
@@ -284,20 +288,23 @@ class ClosetActivity : ComponentActivity() {
     private @Composable
     fun GlideImageView(item: String, modifier: Modifier, imageOnClick: () -> Unit) {
 
-        Box(
+        Row(
             modifier = modifier
                 .fillMaxSize()
         ) {
+            Spacer(modifier = Modifier.weight(1f))
             GlideImage(
                 imageModel = item,
                 contentDescription = "Image",
                 modifier = Modifier
                     .fillMaxSize()
+                    .weight(4f)
                     .clickable {
                         imageOnClick()
                     },
                 contentScale = ContentScale.FillBounds
             )
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 
@@ -339,30 +346,25 @@ class ClosetActivity : ComponentActivity() {
             mutableStateOf(null)
         }
 
-        // ActivityResultLauncher for picking visual media from the device
-        val pickMedia = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.PickVisualMedia(),
-            // Callback for handling the result of media selection
-            onResult = { uri ->
-                if (uri != null) {
-                    // Load the selected image into the inputImage state
-                    inputImage.value =
-                        MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
-                } else {
-                    Log.d("PhotoPicker", "No media selected")
-                }
-            })
-
+        val imageCropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
+            if (result.isSuccessful) {
+                inputImage.value =
+                    MediaStore.Images.Media.getBitmap(context.contentResolver, result.uriContent)
+            }
+            else {
+                Log.d("PhotoPicker", "No media selected")
+            }
+        }
 
         Image(painter = painterResource(id = R.drawable.addicon),
             contentDescription = "add",
             modifier = modifier
-                .size(62.dp)
+                .size(72.dp)
                 .padding(end = 16.dp)
                 .clickable {
-                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    val cropOption = CropImageContractOptions(CropImage.CancelledResult.uriContent, CropImageOptions())
+                    imageCropLauncher.launch(cropOption)
                 })
-
 
         // State to track the loading status during image segmentation
         var loading: Boolean by remember {
@@ -558,7 +560,8 @@ class ClosetActivity : ComponentActivity() {
                                     .size(80.dp)
                                     .clickable {
                                         onImageClick(it.first, it.second)
-                                    }
+                                    },
+                                contentScale = ContentScale.FillBounds
                             )
                         }
                     }
@@ -595,40 +598,77 @@ class ClosetActivity : ComponentActivity() {
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .height(104.dp),
-                color = Color(0xFFE5E1DC)
+                    .height(80.dp),
+                color = Color(0xFFEDF3F5)
             )
             Image(
-                painter = painterResource(id = R.drawable.character),
+                painter = painterResource(id = R.drawable.charactershadow),
                 contentDescription = null,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 16.dp, bottom = 24.dp),
+                    .size(320.dp, 56.dp)
+                    .align(Alignment.BottomCenter),
                 contentScale = ContentScale.FillBounds
             )
-            Column(modifier = Modifier.fillMaxSize()) {
-                Spacer(modifier = Modifier.weight(5f))
+            Row(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(4f)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.character_face),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(4f)
+                    )
+                    //상의
+                    clickedTop?.let { topUri ->
+                        GlideImageView(
+                            topUri, modifier = Modifier.weight(8f)
+                        ) { topOnClick() }
+                    } ?: Image(
+                        painter = painterResource(id = R.drawable.character_top),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(8f),
+                        contentScale = ContentScale.FillBounds
+                    )
 
-                //상의
-                clickedTop?.let { topUri ->
-                    GlideImageView(
-                        topUri, modifier = Modifier.weight(10f)
-                    ) { topOnClick() }
-                } ?: Spacer(modifier = Modifier.weight(10f))
+                    //하의
+                    clickedPants?.let { pantsUri ->
+                        GlideImageView(
+                            pantsUri, modifier = Modifier.weight(14f)
+                        ) { pantsOnClick() }
+                    } ?: Image(
+                        painter = painterResource(id = R.drawable.character_pants),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(14f),
+                        contentScale = ContentScale.FillBounds
+                    )
 
-                //하의
-                clickedPants?.let { pantsUri ->
-                    GlideImageView(
-                        pantsUri, modifier = Modifier.weight(13f)
-                    ) { pantsOnClick() }
-                } ?: Spacer(modifier = Modifier.weight(13f))
 
-                //신발
-                clickedShoes?.let { shoesUri ->
-                    GlideImageView(
-                        shoesUri, modifier = Modifier.weight(2f)
-                    ) { shoesOnClick() }
-                } ?: Spacer(modifier = Modifier.weight(2f))
+                    //신발
+                    clickedShoes?.let { shoesUri ->
+                        GlideImageView(
+                            shoesUri, modifier = Modifier.weight(2f)
+                        ) { shoesOnClick() }
+                    } ?: Image(
+                        painter = painterResource(id = R.drawable.character_shoes),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(2f),
+                        contentScale = ContentScale.FillBounds
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
             }
             val mContext = LocalContext.current
             Column(
@@ -677,7 +717,7 @@ class ClosetActivity : ComponentActivity() {
                                 contentDescription = "Image",
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(660.dp),
+                                    .height(240.dp),
                                 contentScale = ContentScale.FillBounds
                             )
                         }
@@ -855,4 +895,5 @@ class ClosetActivity : ComponentActivity() {
             }
         }
     }
+
 }

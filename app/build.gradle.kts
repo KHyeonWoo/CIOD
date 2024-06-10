@@ -83,4 +83,8 @@ dependencies {
     val room_version = "2.6.1"
     ksp("androidx.room:room-compiler:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
+    implementation("com.github.CanHub:Android-Image-Cropper:4.0.0")
+
+
+
 }
