@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
                 }
                 Button(
                     onClick = {
-                        mContext.startActivity(Intent(mContext, ClosetActivity::class.java))
+                        mContext.startActivity(Intent(mContext, LoginActivity::class.java))
                     },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
                         containerColor = Color.Black
                     )
                 ) {
-                    Text(text = "내 옷장으로 가기", fontSize = 16.sp)
+                    Text(text = "로그인", fontSize = 16.sp)
                 }
             }
         }

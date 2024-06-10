@@ -53,10 +53,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
+import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -66,32 +68,48 @@ class CalendarActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            Calendar()
+
+            var user by remember {
+                mutableStateOf("")
+            }
+
+            //// 넘어온 값이 RESULT_OK이면 getStringExtra로 값 가져오기
+            user = intent.getStringExtra("user") ?: ""
+
+            Calendar(user)
         }
     }
 
+    class DAYFIT(
+    ) {
+        var user: String? = null
+        var date: String? = null
+        var top: String? = null
+        var pants: String? = null
+        var shoes: String? = null
+    }
+
     @Composable
-    fun Calendar() {
+    fun Calendar(user: String) {
         val currentDate = LocalDate.now()
         var year by remember { mutableIntStateOf(currentDate.year) }
         var month by remember { mutableIntStateOf(currentDate.monthValue) }
-        val context = LocalContext.current
-        val db by remember { mutableStateOf(AppDatabase.getDatabase(context)) }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFDCE9EC))
         ) {
-            CalendarHeader(year, month, onPreviousMonth = {
-                val (newYear, newMonth) = updateMonth(year, month, -1)
-                year = newYear
-                month = newMonth
-            }, onNextMonth = {
-                val (newYear, newMonth) = updateMonth(year, month, 1)
-                year = newYear
-                month = newMonth
-            })
+            CalendarHeader(year, month,
+                onPreviousMonth = {
+                    val (newYear, newMonth) = updateMonth(year, month, -1)
+                    year = newYear
+                    month = newMonth
+                }, onNextMonth = {
+                    val (newYear, newMonth) = updateMonth(year, month, 1)
+                    year = newYear
+                    month = newMonth
+                })
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -100,9 +118,16 @@ class CalendarActivity : ComponentActivity() {
             ) {
                 CalendarWeekHeader()
 
+                //Outfit Of The Day 등록/삭제 시 화면 재구성을 위한 변수
                 var reLoad by remember { mutableIntStateOf(0) }
+
+                // 화면이 처음 켜질 때 reLoad를 증가시켜 자동으로 재구성하도록 설정
+                LaunchedEffect(month) {
+                    reLoad++
+                }
+
                 CustomCalendarView(year, month) { day ->
-                    CalendarOOTD(db, year, month, day, reLoad) { reLoad++ }
+                    CalendarDayFit(user, year, month, day, reLoad) { reLoad++ }
                 }
             }
         }
@@ -122,17 +147,41 @@ class CalendarActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun CalendarOOTD(
-        db: AppDatabase, year: Int, month: Int, day: Int, reLoad: Int, reLoadEvent: () -> Unit
+    private fun CalendarDayFit(
+        user: String,
+        year: Int,
+        month: Int,
+        day: Int,
+        reLoad: Int,
+        reLoadEvent: () -> Unit
     ) {
-        var ootd by remember { mutableStateOf<OOTD?>(null) }
+        var dayFit by remember(month) { mutableStateOf<DAYFIT?>(null) }
         val coroutineScope = rememberCoroutineScope()
 
-        LaunchedEffect(year, month, day, reLoad) {
+        LaunchedEffect(month, day, reLoad) {
             coroutineScope.launch(Dispatchers.IO) {
-                ootd = db.FavoriteClothesDao().getOOTD(
-                    LocalDate.of(year, month, day).format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                )
+                try {
+                    val document = Firebase.firestore.collection("theDayFit")
+                        .document("$user$year$month$day")
+                        .get()
+                        .await()
+
+                    if (document.exists()) {
+                        val dataMap = document.data?.mapValues { it.value as? String }.orEmpty()
+                        val savedDayFit = DAYFIT()
+                        savedDayFit.user = dataMap["user"].orEmpty()
+                        savedDayFit.date = dataMap["date"].orEmpty()
+                        savedDayFit.top = dataMap["topItem"].orEmpty()
+                        savedDayFit.pants = dataMap["pantsItem"].orEmpty()
+                        savedDayFit.shoes = dataMap["shoesItem"].orEmpty()
+
+                        dayFit = savedDayFit
+                    } else {
+                        Log.d("Firestore", "No such document")
+                    }
+                } catch (e: Exception) {
+                    Log.d("Firestore", "get failed with ", e)
+                }
             }
         }
 
@@ -148,7 +197,8 @@ class CalendarActivity : ComponentActivity() {
                     fontSize = 16.sp,
                     color = Color.White,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxHeight()
+                    modifier = Modifier
+                        .fillMaxHeight()
                         .width(32.dp)
                         .background(
                             Color(0xFF50B4B0), RoundedCornerShape(10.dp)
@@ -167,11 +217,11 @@ class CalendarActivity : ComponentActivity() {
         ) {
             var openDialog by remember { mutableStateOf(false) }
 
-            ootd?.let {
+            if (dayFit != null) {
                 Column {
 
                     Image(
-                        painter = rememberAsyncImagePainter(it.top),
+                        painter = rememberAsyncImagePainter(dayFit?.top),
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -182,7 +232,7 @@ class CalendarActivity : ComponentActivity() {
                         contentScale = ContentScale.FillBounds
                     )
                     Image(
-                        painter = rememberAsyncImagePainter(it.pants),
+                        painter = rememberAsyncImagePainter(dayFit?.pants),
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -193,7 +243,7 @@ class CalendarActivity : ComponentActivity() {
                         contentScale = ContentScale.FillBounds
                     )
                     Image(
-                        painter = rememberAsyncImagePainter(it.shoes),
+                        painter = rememberAsyncImagePainter(dayFit?.shoes),
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -205,22 +255,22 @@ class CalendarActivity : ComponentActivity() {
                     )
 
                     if (openDialog) {
-                        CharacterFit(db, it, year, month, day,
-                            { openDialog = false },
+                        CharacterFit(user, dayFit, year, month, day, { openDialog = false },
                             { reLoadEvent() })
                     }
                 }
-            } ?: Column {
-                Spacer(modifier = Modifier
-                    .fillMaxSize()
-                    .clickable {
-                        openDialog = true
-                    })
+            } else {
+                Column {
+                    Spacer(modifier = Modifier
+                        .fillMaxSize()
+                        .clickable {
+                            openDialog = true
+                        })
 
-                if (openDialog) {
-                    CharacterFit(db, null, year, month, day,
-                        { openDialog = false },
-                        { reLoadEvent() })
+                    if (openDialog) {
+                        CharacterFit(user, null, year, month, day, { openDialog = false },
+                            { reLoadEvent() })
+                    }
                 }
             }
         }
@@ -228,7 +278,9 @@ class CalendarActivity : ComponentActivity() {
 
     @Composable
     private fun CustomCalendarView(
-        year: Int, month: Int, content: @Composable (Int) -> Unit
+        year: Int,
+        month: Int,
+        content: @Composable (Int) -> Unit
     ) {
         Layout(modifier = Modifier
             .fillMaxSize()
@@ -237,6 +289,7 @@ class CalendarActivity : ComponentActivity() {
                     drawContent()
                 }
             }, content = {
+            //한 칸에 텍스트&이미지 이므로 요일에 해당하는 수에 2배를 하고 -1을 함
             val firstDayOfMonth = (LocalDate.of(year, month, 1).dayOfWeek.value % 7) * 2 - 1
             val daysInMonth = YearMonth.of(year, month).lengthOfMonth()
             val totalCells = firstDayOfMonth + daysInMonth
@@ -351,26 +404,27 @@ class CalendarActivity : ComponentActivity() {
 
     @Composable
     private fun CharacterFit(
-        db: AppDatabase,
-        ootd: OOTD?,
+        user: String,
+        dayFit: DAYFIT?,
         year: Int,
         month: Int,
         day: Int,
         close: () -> Unit,
         reLoadEvent: () -> Unit
     ) {
+
         val topItems = remember { mutableStateListOf<Uri>() }
         val pantsItems = remember { mutableStateListOf<Uri>() }
         val shoesItems = remember { mutableStateListOf<Uri>() }
 
         LaunchedEffect(Unit) {
-            downloadImage("topimage") {
+            downloadImage(user, "topimage") {
                 topItems.add(it)
             }
-            downloadImage("pantsimage") {
+            downloadImage(user, "pantsimage") {
                 pantsItems.add(it)
             }
-            downloadImage("shoesimage") {
+            downloadImage(user, "shoesimage") {
                 shoesItems.add(it)
             }
         }
@@ -391,7 +445,7 @@ class CalendarActivity : ComponentActivity() {
                     var shoesSavedItemIdx by remember { mutableIntStateOf(0) }
 
                     CharacterBackground()
-                    CharacterFitClothes(ootd, topItems, pantsItems, shoesItems, {
+                    CharacterFitClothes(dayFit, topItems, pantsItems, shoesItems, {
                         topSavedItemIdx = it
                     }, {
                         pantsSavedItemIdx = it
@@ -401,35 +455,64 @@ class CalendarActivity : ComponentActivity() {
                     Column(modifier = Modifier.align(alignment = Alignment.TopEnd)) {
 
                         val coroutineScope = rememberCoroutineScope()
-                        if (ootd == null) {
+                        if (dayFit?.date == null) {
                             Button(
                                 onClick = {
+                                    val theDayFit = hashMapOf(
+                                        "user" to user,
+                                        "date" to LocalDate.of(year, month, day)
+                                            .format(DateTimeFormatter.ofPattern("yyyyMMdd")),
+                                        "topItem" to topItems[topSavedItemIdx].toString(),
+                                        "pantsItem" to pantsItems[pantsSavedItemIdx].toString(),
+                                        "shoesItem" to shoesItems[shoesSavedItemIdx].toString()
+                                    )
+
                                     coroutineScope.launch(Dispatchers.IO) {
-                                        db.FavoriteClothesDao().insertAll(
-                                            OOTD(
-                                                LocalDate.of(year, month, day)
-                                                    .format(DateTimeFormatter.ofPattern("yyyyMMdd")),
-                                                topItems[topSavedItemIdx].toString(),
-                                                pantsItems[pantsSavedItemIdx].toString(),
-                                                shoesItems[shoesSavedItemIdx].toString()
-                                            )
-                                        )
+                                        Firebase.firestore.collection("theDayFit")
+                                            .document("$user$year$month$day")
+                                            .set(theDayFit)
+                                            .addOnSuccessListener {
+                                                Toast.makeText(
+                                                    context,
+                                                    "DayFit 등록 성공",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                reLoadEvent()
+                                                close()
+                                            }
+                                            .addOnFailureListener { e ->
+                                                Toast.makeText(
+                                                    context,
+                                                    e.toString(),
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
                                     }
-                                    Toast.makeText(context, "OOTD 등록 성공", Toast.LENGTH_SHORT).show()
-                                    reLoadEvent()
-                                    close()
                                 }, modifier = Modifier
                             ) {
                                 Text(text = "등록")
                             }
                         } else {
                             Button(onClick = {
-                                coroutineScope.launch(Dispatchers.IO) {
-                                    db.FavoriteClothesDao().delete(ootd)
-                                }
-                                Toast.makeText(context, "OOTD 삭제 성공", Toast.LENGTH_SHORT).show()
-                                reLoadEvent()
-                                close()
+                                Firebase.firestore.collection("TheDayFit")
+                                    .document("$user$year$month$day")
+                                    .delete()
+                                    .addOnSuccessListener {
+                                        Toast.makeText(
+                                            context,
+                                            "DayFit 삭제 성공",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        reLoadEvent()
+                                        close()
+                                    }
+                                    .addOnFailureListener { e ->
+                                        Toast.makeText(
+                                            context,
+                                            e.toString(),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                             }) {
                                 Text(text = "삭제")
                             }
@@ -492,7 +575,7 @@ class CalendarActivity : ComponentActivity() {
 
     @Composable
     fun CharacterFitClothes(
-        ootd: OOTD?,
+        dayFit: DAYFIT?,
         topItems: List<Uri>,
         pantsItems: List<Uri>,
         shoesItems: List<Uri>,
@@ -508,20 +591,33 @@ class CalendarActivity : ComponentActivity() {
             ) {
                 Spacer(modifier = Modifier.weight(4f))
                 if (topItems.isNotEmpty()) {
-                    ClothDragBox(Modifier.weight(8f), ootd?.top, topItems) { getTopIdx(it) }
+                    ClothDragBox(
+                        Modifier.weight(8f),
+                        dayFit?.top,
+                        topItems
+                    ) { getTopIdx(it) }
                 }
                 if (pantsItems.isNotEmpty()) {
-                    ClothDragBox(Modifier.weight(14f), ootd?.pants, pantsItems) { getPantsIdx(it) }
+                    ClothDragBox(
+                        Modifier.weight(14f),
+                        dayFit?.pants,
+                        pantsItems
+                    ) { getPantsIdx(it) }
                 }
                 if (shoesItems.isNotEmpty()) {
-                    ClothDragBox(Modifier.weight(2f), ootd?.shoes, shoesItems) { getShoesIdx(it) }
+                    ClothDragBox(
+                        Modifier.weight(2f),
+                        dayFit?.shoes,
+                        shoesItems
+                    ) { getShoesIdx(it) }
                 }
             }
         }
     }
 
-    private fun downloadImage(clothRef: String, getItem: (Uri) -> Unit) {
-        val storageRef = Firebase.storage.reference.child(clothRef)
+    private fun downloadImage(user: String, clothRef: String, getItem: (Uri) -> Unit) {
+        val userRef = Firebase.storage.reference.child(user)
+        val storageRef = userRef.child(clothRef)
 
         storageRef.listAll().addOnSuccessListener {
             it.items.forEach { itemRef ->
@@ -534,7 +630,7 @@ class CalendarActivity : ComponentActivity() {
 
     @Composable
     fun ClothDragBox(
-        modifier: Modifier, ootdCloth: String?, clothItems: List<Uri>, getIdx: (Int) -> Unit
+        modifier: Modifier, dayFitCloth: String?, clothItems: List<Uri>, getIdx: (Int) -> Unit
     ) {
         var direction by remember { mutableIntStateOf(-1) }
         var offsetX by remember { mutableFloatStateOf(0f) }
@@ -588,7 +684,7 @@ class CalendarActivity : ComponentActivity() {
                 color = Color.White, modifier = Modifier.fillMaxSize()
             )
 
-            Image(painter = ootdCloth?.let { rememberAsyncImagePainter(it) }
+            Image(painter = dayFitCloth?.let { rememberAsyncImagePainter(it) }
                 ?: rememberAsyncImagePainter(clothItems[clothIdx]),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),

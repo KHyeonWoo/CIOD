@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.androidx.core.i18n)
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.places)
+    implementation(libs.firebase.firestore)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -85,6 +86,8 @@ dependencies {
     implementation("androidx.room:room-ktx:$room_version")
     implementation("com.github.CanHub:Android-Image-Cropper:4.0.0")
 
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
 
-
+    implementation(platform("com.google.firebase:firebase-bom:32.3.1"))
 }

@@ -94,15 +94,24 @@ class ClosetActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 //        enableEdgeToEdge()
         setContent {
-            CIODTheme {
-                MainScreen()
 
+
+            CIODTheme {
+
+                var user by remember {
+                    mutableStateOf("")
+                }
+
+                //// 넘어온 값이 RESULT_OK이면 getStringExtra로 값 가져오기
+                user = intent.getStringExtra("user") ?: ""
+
+                MainScreen(user)
             }
         }
     }
 
     @Composable
-    fun MainScreen() {
+    fun MainScreen(user: String) {
         var successUpload by remember { mutableStateOf(false) }
         var clickedTopRef by remember { mutableStateOf<StorageReference?>(null) }
         var clickedTopUri by remember { mutableStateOf<String?>(null) }
@@ -116,7 +125,7 @@ class ClosetActivity : ComponentActivity() {
             var isTopPopup by remember { mutableStateOf(false) }
             var isPantsPopup by remember { mutableStateOf(false) }
             var isShoesPopup by remember { mutableStateOf(false) }
-            Character(Modifier.weight(7f), clickedTopUri, clickedPantsUri, clickedShoesUri,
+            Character(Modifier.weight(7f), user, clickedTopUri, clickedPantsUri, clickedShoesUri,
                 {
                     isTopPopup = true
                 },
@@ -172,7 +181,7 @@ class ClosetActivity : ComponentActivity() {
                 )
             }
             CategoryTapLayout(
-                Modifier.weight(3f), successUpload, { successUpload = !successUpload },
+                Modifier.weight(3f), user, successUpload, { successUpload = !successUpload },
                 { clickedRef: StorageReference, clickedUri: String ->
                     clickedTopRef = clickedRef
                     clickedTopUri = clickedUri
@@ -193,6 +202,7 @@ class ClosetActivity : ComponentActivity() {
     @Composable
     fun CategoryTapLayout(
         modifier: Modifier,
+        user: String,
         successUpload: Boolean,
         successUploadEvent: () -> Unit,
         onTopImageClick: (StorageReference, String) -> Unit,
@@ -252,6 +262,7 @@ class ClosetActivity : ComponentActivity() {
                 ) { page ->
                     if (page.toString() == "0") {
                         ImageSection(
+                            user = user,
                             category = "topimage",
                             successUpload = successUpload,
                             onUpload = {
@@ -261,6 +272,7 @@ class ClosetActivity : ComponentActivity() {
                         )
                     } else if (page.toString() == "1") {
                         ImageSection(
+                            user = user,
                             category = "pantsimage",
                             successUpload = successUpload,
                             onUpload = {
@@ -270,6 +282,7 @@ class ClosetActivity : ComponentActivity() {
                         )
                     } else if (page.toString() == "2") {
                         ImageSection(
+                            user = user,
                             category = "shoesimage",
                             successUpload = successUpload,
                             onUpload = {
@@ -310,6 +323,7 @@ class ClosetActivity : ComponentActivity() {
 
     @Composable
     fun ImageSection(
+        user: String,
         category: String,
         successUpload: Boolean,
         onUpload: () -> Unit,
@@ -319,11 +333,11 @@ class ClosetActivity : ComponentActivity() {
             mutableIntStateOf(-1)
         }
         Box(modifier = Modifier.fillMaxSize()) {
-            ImageGrid(category, successUpload, onImageClick) { idx = it }
+            ImageGrid(user, category, successUpload, onImageClick) { idx = it }
             GalleryUploadButton(
                 Modifier.align(
                     Alignment.BottomEnd
-                ), idx + 1, category, onUpload
+                ), user, idx + 1, category, onUpload
             )
         }
     }
@@ -331,6 +345,7 @@ class ClosetActivity : ComponentActivity() {
     @Composable
     fun GalleryUploadButton(
         modifier: Modifier,
+        user: String,
         index: Int,
         category: String,
         onUpload: () -> Unit
@@ -350,8 +365,7 @@ class ClosetActivity : ComponentActivity() {
             if (result.isSuccessful) {
                 inputImage.value =
                     MediaStore.Images.Media.getBitmap(context.contentResolver, result.uriContent)
-            }
-            else {
+            } else {
                 Log.d("PhotoPicker", "No media selected")
             }
         }
@@ -362,7 +376,10 @@ class ClosetActivity : ComponentActivity() {
                 .size(72.dp)
                 .padding(end = 16.dp)
                 .clickable {
-                    val cropOption = CropImageContractOptions(CropImage.CancelledResult.uriContent, CropImageOptions())
+                    val cropOption = CropImageContractOptions(
+                        CropImage.CancelledResult.uriContent,
+                        CropImageOptions()
+                    )
                     imageCropLauncher.launch(cropOption)
                 })
 
@@ -390,7 +407,7 @@ class ClosetActivity : ComponentActivity() {
             ImageUploadPopup(
                 showDialog = showDialog,
                 upLoad = {
-                    imageUpload(context, category, index, bitmap, onUpload)
+                    imageUpload(user, context, category, index, bitmap, onUpload)
                 },
                 cancel = {
                     showDialog = false
@@ -417,6 +434,7 @@ class ClosetActivity : ComponentActivity() {
     }
 
     private fun imageUpload(
+        user: String,
         context: Context,
         category: String,
         index: Int,
@@ -427,7 +445,8 @@ class ClosetActivity : ComponentActivity() {
         val imageUri = saveBitmapToFile(context, bitmap, fileName)
 
         imageUri?.let {
-            val storageRef = Firebase.storage.getReference(category)
+            val userRef = Firebase.storage.getReference(user)
+            val storageRef = userRef.child(category)
             val mountainsRef = storageRef.child(fileName)
 
             val uploadTask = mountainsRef.putFile(it)
@@ -448,7 +467,7 @@ class ClosetActivity : ComponentActivity() {
         desertRef: StorageReference
     ) {
         desertRef.delete().addOnSuccessListener {
-            Toast.makeText(context, "$desertRef 사진 삭제 성공", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "사진 삭제 성공", Toast.LENGTH_SHORT).show()
         }.addOnFailureListener {
             Toast.makeText(context, "사진 삭제 실패", Toast.LENGTH_SHORT).show()
         }
@@ -462,7 +481,7 @@ class ClosetActivity : ComponentActivity() {
         bitmap: Bitmap
     ) {
         if (showDialog) {
-            Dialog(onDismissRequest = { }) {
+            Dialog(onDismissRequest = { cancel() }) {
                 Surface(
                     shape = MaterialTheme.shapes.medium,
                     tonalElevation = 24.dp
@@ -503,24 +522,28 @@ class ClosetActivity : ComponentActivity() {
 
     @Composable
     fun ImageGrid(
+        user: String,
         category: String,
         successUpload: Boolean,
         onImageClick: (StorageReference, String) -> Unit,
         returnIdx: (Int) -> Unit
     ) {
-        val storageRef = Firebase.storage.reference.child(category)
+        val userRef = Firebase.storage.reference.child(user)
+        val storageRef = userRef.child(category)
         val itemsRef = remember { mutableStateListOf<StorageReference>() }
         val itemsUri = remember { mutableStateListOf<String>() }
         val idxList = remember { mutableListOf(-1) }
         var num by remember { mutableIntStateOf(0) }
 
+
         LaunchedEffect(successUpload) {
             itemsRef.clear()
             itemsUri.clear()
 
-            val listResult = storageRef.listAll().await()
-
             coroutineScope {
+
+                val listResult = storageRef.listAll().await()
+
                 val downloadTasks = listResult.items.map { clothRef ->
                     async {
                         try {
@@ -577,6 +600,7 @@ class ClosetActivity : ComponentActivity() {
     @Composable
     private fun Character(
         modifier: Modifier,
+        user: String,
         clickedTop: String?,
         clickedPants: String?,
         clickedShoes: String?,
@@ -625,6 +649,8 @@ class ClosetActivity : ComponentActivity() {
                             .fillMaxSize()
                             .weight(4f)
                     )
+
+
                     //상의
                     clickedTop?.let { topUri ->
                         GlideImageView(
@@ -670,7 +696,7 @@ class ClosetActivity : ComponentActivity() {
                 }
                 Spacer(modifier = Modifier.weight(1f))
             }
-            val mContext = LocalContext.current
+            val context = LocalContext.current
             Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -682,7 +708,9 @@ class ClosetActivity : ComponentActivity() {
                     modifier = Modifier
                         .size(48.dp)
                         .clickable {
-                            mContext.startActivity(Intent(mContext, CalendarActivity::class.java))
+                            val userIntent = Intent(context, CalendarActivity::class.java)
+                            userIntent.putExtra("user", user)
+                            context.startActivity(userIntent)
                         })
                 Text(
                     text = LocalDate.now().month.toString()
