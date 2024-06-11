@@ -120,28 +120,37 @@ class LoginActivity : ComponentActivity() {
 
                 Button(
                     onClick = {
-                        auth.signInWithEmailAndPassword(email, password)
-                            .addOnCompleteListener { task ->
-                                if (task.isSuccessful) {
-                                    // Sign in success, update UI with the signed-in user's information
-                                    Log.d(TAG, "signInWithEmail:success")
-                                    val user = auth.currentUser
-                                    val userIntent = Intent(context, ClosetActivity::class.java)
-                                    if (user != null) {
-                                        userIntent.putExtra("user", email)
+                        if (email.isEmpty() || password.isEmpty()) {
+
+                            Toast.makeText(
+                                baseContext,
+                                "이메일 / 비밀번호를 입력하세요",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        } else {
+                            auth.signInWithEmailAndPassword(email, password)
+                                .addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        // Sign in success, update UI with the signed-in user's information
+                                        Log.d(TAG, "signInWithEmail:success")
+                                        val user = auth.currentUser
+                                        val userIntent = Intent(context, ClosetActivity::class.java)
+                                        if (user != null) {
+                                            userIntent.putExtra("user", email)
+                                        }
+                                        password = ""
+                                        context.startActivity(userIntent)
+                                    } else {
+                                        // If sign in fails, display a message to the user.
+                                        Log.w(TAG, "signInWithEmail:failure", task.exception)
+                                        Toast.makeText(
+                                            baseContext,
+                                            task.exception.toString(),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
                                     }
-                                    password = ""
-                                    context.startActivity(userIntent)
-                                } else {
-                                    // If sign in fails, display a message to the user.
-                                    Log.w(TAG, "signInWithEmail:failure", task.exception)
-                                    Toast.makeText(
-                                        baseContext,
-                                        task.exception.toString(),
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
                                 }
-                            }
+                        }
                     },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)

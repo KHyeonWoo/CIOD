@@ -15,15 +15,24 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.airbnb.lottie.compose.LottieClipSpec
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieAnimatable
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
 
 class MainActivity : ComponentActivity() {
@@ -52,22 +61,25 @@ class MainActivity : ComponentActivity() {
                         .padding(bottom = 120.dp)
                         .size(176.dp, 240.dp)
                 )
+
+                LottieAnimation(Modifier.align(Alignment.Center))
+
                 val context = LocalContext.current
 
                 Column(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .padding(bottom = 40.dp)
+                        .padding(bottom = 22.dp)
                 ) {
                     Text(
                         text = "CIOD",
-                        fontSize = 54.sp,
+                        fontSize = 50.sp,
                         color = Color.Black,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                         fontWeight = FontWeight.Bold
                     )
                     Text(text = "Closet Is Open Door",
-                        fontSize = 24.sp,
+                        fontSize = 20.sp,
                         color = Color(0xFFADADAD),
                         modifier = Modifier.align(Alignment.CenterHorizontally))
                 }
@@ -94,4 +106,34 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    @Composable
+    fun LottieAnimation(modifier: Modifier) {
+
+        val composition by rememberLottieComposition(
+            LottieCompositionSpec.RawRes(R.raw.mainactivitybackground)
+        )
+        val lottieAnimatable = rememberLottieAnimatable()
+
+        LaunchedEffect(composition) {
+            lottieAnimatable.animate(
+                composition = composition,
+                clipSpec = LottieClipSpec.Frame(0, 1200),
+                initialProgress = 0f
+            )
+        }
+
+        Box(
+            modifier = modifier
+                .size(320.dp)
+                .padding(start = 8.dp, bottom = 200.dp)
+        ) {
+            com.airbnb.lottie.compose.LottieAnimation(
+                composition = composition,
+                iterations = LottieConstants.IterateForever,
+                contentScale = ContentScale.FillHeight
+            )
+        }
+    }
+
 }

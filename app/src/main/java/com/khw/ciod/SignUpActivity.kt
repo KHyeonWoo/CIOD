@@ -3,7 +3,6 @@ package com.khw.ciod
 import android.content.ContentValues.TAG
 import android.os.Bundle
 import android.util.Log
-import android.widget.ImageButton
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -66,6 +65,7 @@ class SignUpActivity : ComponentActivity() {
                         .size(176.dp, 240.dp)
                 )
 
+
                 var email: String by remember { mutableStateOf("") }
                 var password: String by remember { mutableStateOf("") }
                 Row(modifier = Modifier.align(Alignment.Center)) {
@@ -101,28 +101,36 @@ class SignUpActivity : ComponentActivity() {
                 val context = LocalContext.current
                 Button(
                     onClick = {
-                        auth.createUserWithEmailAndPassword(email, password)
-                            .addOnCompleteListener { task ->
-                                if (task.isSuccessful) {
-                                    // Sign in success, update UI with the signed-in user's information
-                                    Toast.makeText(
-                                        context,
-                                        "회원가입 완료",
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
-                                    Log.d(TAG, "createUserWithEmail:success")
-                                    finish()
-                                } else {
-                                    // If sign in fails, display a message to the user.
-                                    Log.w(TAG, "createUserWithEmail:failure", task.exception)
-                                    Toast.makeText(
-                                        context,
-                                        task.exception.toString(),
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
-                                }
-                            }
+                        if (email.isEmpty() || password.isEmpty()) {
 
+                            Toast.makeText(
+                                baseContext,
+                                "이메일 / 비밀번호를 입력하세요",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        } else {
+                            auth.createUserWithEmailAndPassword(email, password)
+                                .addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        // Sign in success, update UI with the signed-in user's information
+                                        Toast.makeText(
+                                            context,
+                                            "회원가입 완료",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                        Log.d(TAG, "createUserWithEmail:success")
+                                        finish()
+                                    } else {
+                                        // If sign in fails, display a message to the user.
+                                        Log.w(TAG, "createUserWithEmail:failure", task.exception)
+                                        Toast.makeText(
+                                            context,
+                                            task.exception.toString(),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                }
+                        }
                     },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)

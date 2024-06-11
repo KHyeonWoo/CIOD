@@ -1,4 +1,3 @@
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -82,13 +81,10 @@ dependencies {
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
     implementation("com.google.accompanist:accompanist-pager:0.20.1")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.20.1")
-
     implementation("com.github.CanHub:Android-Image-Cropper:4.0.0")
-
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.android.gms:play-services-auth:20.7.0")
-
     implementation(platform("com.google.firebase:firebase-bom:32.3.1"))
-
     implementation("com.google.android.gms:play-services-oss-licenses:17.0.1")
+    implementation("com.airbnb.android:lottie-compose:6.4.1")
 }

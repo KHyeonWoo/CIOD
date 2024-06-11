@@ -11,10 +11,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.AlertDialog
 import androidx.compose.material.Divider
 import androidx.compose.material.Tab
 import androidx.compose.material.TabRow
@@ -35,13 +33,11 @@ import androidx.compose.material.TabRowDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -70,6 +66,7 @@ import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.pagerTabIndicatorOffset
 import com.google.accompanist.pager.rememberPagerState
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.StorageException
 import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.ktx.storage
 import com.google.mlkit.vision.common.InputImage
@@ -77,10 +74,12 @@ import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
 import com.khw.ciod.ui.theme.CIODTheme
 import com.skydoves.landscapist.glide.GlideImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -94,15 +93,11 @@ class ClosetActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 //        enableEdgeToEdge()
         setContent {
-
-
             CIODTheme {
 
                 var user by remember {
                     mutableStateOf("")
                 }
-
-                //// 넘어온 값이 RESULT_OK이면 getStringExtra로 값 가져오기
                 user = intent.getStringExtra("user") ?: ""
 
                 MainScreen(user)
@@ -113,6 +108,7 @@ class ClosetActivity : ComponentActivity() {
     @Composable
     fun MainScreen(user: String) {
         var successUpload by remember { mutableStateOf(false) }
+        var faceUri: String? by remember { mutableStateOf(null) }
         var clickedTopRef by remember { mutableStateOf<StorageReference?>(null) }
         var clickedTopUri by remember { mutableStateOf<String?>(null) }
         var clickedPantsRef by remember { mutableStateOf<StorageReference?>(null) }
@@ -120,12 +116,20 @@ class ClosetActivity : ComponentActivity() {
         var clickedShoesRef by remember { mutableStateOf<StorageReference?>(null) }
         var clickedShoesUri by remember { mutableStateOf<String?>(null) }
 
+        LaunchedEffect(successUpload) {
+            faceUri = getFace(user)
+        }
         Column(modifier = Modifier.fillMaxSize()) {
 
             var isTopPopup by remember { mutableStateOf(false) }
             var isPantsPopup by remember { mutableStateOf(false) }
             var isShoesPopup by remember { mutableStateOf(false) }
-            Character(Modifier.weight(7f), user, clickedTopUri, clickedPantsUri, clickedShoesUri,
+            Character(Modifier.weight(7f),
+                user,
+                faceUri,
+                clickedTopUri,
+                clickedPantsUri,
+                clickedShoesUri,
                 {
                     isTopPopup = true
                 },
@@ -134,6 +138,12 @@ class ClosetActivity : ComponentActivity() {
                 },
                 {
                     isShoesPopup = true
+                },
+                {
+                    faceUri = null
+                },
+                {
+                    successUpload = !successUpload
                 })
 
             clickedTopRef?.let { clickedRef ->
@@ -343,34 +353,24 @@ class ClosetActivity : ComponentActivity() {
     }
 
     @Composable
-    fun GalleryUploadButton(
+    fun ImagePicker(
         modifier: Modifier,
-        user: String,
-        index: Int,
-        category: String,
-        onUpload: () -> Unit
+        onImageSelected: (Bitmap) -> Unit
     ) {
-
         val context = LocalContext.current
-
-        // State to hold the output bitmap after segmentation
-        val outputImage: MutableState<Bitmap?> = remember {
-            mutableStateOf<Bitmap?>(null)
-        }
-        val inputImage: MutableState<Bitmap?> = remember {
-            mutableStateOf(null)
-        }
 
         val imageCropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
             if (result.isSuccessful) {
-                inputImage.value =
+                val bitmap =
                     MediaStore.Images.Media.getBitmap(context.contentResolver, result.uriContent)
+                onImageSelected(bitmap)
             } else {
                 Log.d("PhotoPicker", "No media selected")
             }
         }
 
-        Image(painter = painterResource(id = R.drawable.addicon),
+        Image(
+            painter = painterResource(id = R.drawable.addicon),
             contentDescription = "add",
             modifier = modifier
                 .size(72.dp)
@@ -381,39 +381,107 @@ class ClosetActivity : ComponentActivity() {
                         CropImageOptions()
                     )
                     imageCropLauncher.launch(cropOption)
-                })
+                }
+        )
+    }
 
-        // State to track the loading status during image segmentation
-        var loading: Boolean by remember {
-            mutableStateOf(false)
-        }
+    @Composable
+    fun ImageSegmentation(
+        inputImage: Bitmap,
+        onSegmentationComplete: (Bitmap) -> Unit
+    ) {
+        var loading: Boolean by remember { mutableStateOf(true) }
+        val coroutineScope = rememberCoroutineScope()
 
-        // Effect to trigger image segmentation when the input image changes
-        LaunchedEffect(key1 = inputImage.value) {
-            inputImage.value?.let { bitmap ->
-                // Set loading to true before starting the segmentation process
-                loading = true
-                // Perform image segmentation using ImageSegmentationHelper
-                val output = ImageSegmentationHelper.getResult(bitmap)
-                // Update the outputImage state with the segmented result
-                outputImage.value = output
-                // Set loading back to false after segmentation is complete
+        LaunchedEffect(inputImage) {
+            coroutineScope.launch {
+                val output = withContext(Dispatchers.Default) {
+                    ImageSegmentationHelper.getResult(inputImage)
+                }
+                if (output != null) {
+                    onSegmentationComplete(output)
+                }
                 loading = false
             }
         }
 
-        outputImage.value?.let { bitmap ->
-            var showDialog by remember { mutableStateOf(true) }
+        if (loading) {
+            CircularProgressIndicator()
+        }
+    }
+
+
+    @Composable
+    fun ImageUploadPopup(
+        showDialog: Boolean,
+        bitmap: Bitmap,
+        onUpload: () -> Unit,
+        onCancel: () -> Unit
+    ) {
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { onCancel() },
+                title = { Text("Upload Image") },
+                text = { Image(bitmap = bitmap.asImageBitmap(), contentDescription = null) },
+                confirmButton = {
+                    Button(onClick = onUpload) {
+                        Text("Upload")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = onCancel) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
+
+
+    @Composable
+    fun GalleryUploadButton(
+        modifier: Modifier,
+        user: String,
+        index: Int,
+        category: String,
+        onUpload: () -> Unit
+    ) {
+        val context = LocalContext.current
+
+        var inputImage by remember { mutableStateOf<Bitmap?>(null) }
+        var segmentedImage by remember { mutableStateOf<Bitmap?>(null) }
+        var showDialog by remember { mutableStateOf(false) }
+
+        ImagePicker(
+            modifier = modifier,
+            onImageSelected = { bitmap ->
+                inputImage = bitmap
+            }
+        )
+
+        inputImage?.let { bitmap ->
+            ImageSegmentation(
+                inputImage = bitmap,
+                onSegmentationComplete = { segmentedBitmap ->
+                    segmentedImage = segmentedBitmap
+                    showDialog = true
+                }
+            )
+        }
+
+        segmentedImage?.let { bitmap ->
             ImageUploadPopup(
                 showDialog = showDialog,
-                upLoad = {
+                bitmap = bitmap,
+                onUpload = {
                     imageUpload(user, context, category, index, bitmap, onUpload)
-                },
-                cancel = {
                     showDialog = false
-                    outputImage.value = null
+                    segmentedImage = null
                 },
-                bitmap = bitmap
+                onCancel = {
+                    showDialog = false
+                    segmentedImage = null
+                }
             )
         }
     }
@@ -601,12 +669,15 @@ class ClosetActivity : ComponentActivity() {
     private fun Character(
         modifier: Modifier,
         user: String,
+        faceUri: String?,
         clickedTop: String?,
         clickedPants: String?,
         clickedShoes: String?,
         topOnClick: () -> Unit,
         pantsOnClick: () -> Unit,
-        shoesOnClick: () -> Unit
+        shoesOnClick: () -> Unit,
+        faceOnClick: () -> Unit,
+        onUpload: () -> Unit
     ) {
         Box(
             modifier = modifier
@@ -640,59 +711,176 @@ class ClosetActivity : ComponentActivity() {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .weight(4f)
+                        .weight(6f)
                 ) {
-                    Image(
+
+                    //얼굴에 이미지 업로드 이벤트 추가
+
+                    val context = LocalContext.current
+
+                    var inputImage by remember { mutableStateOf<Bitmap?>(null) }
+                    var segmentedImage by remember { mutableStateOf<Bitmap?>(null) }
+                    var showDialog by remember { mutableStateOf(false) }
+
+                    val imageCropLauncher =
+                        rememberLauncherForActivityResult(CropImageContract()) { result ->
+                            if (result.isSuccessful) {
+                                val bitmap =
+                                    MediaStore.Images.Media.getBitmap(
+                                        context.contentResolver,
+                                        result.uriContent
+                                    )
+                                inputImage = bitmap
+                            } else {
+                                Log.d("PhotoPicker", "No media selected")
+                            }
+                        }
+
+                    //얼굴
+                    faceUri?.let { face ->
+                        Row(
+                            modifier = Modifier
+                                .weight(4f)
+                        ) {
+                            Spacer(modifier = Modifier.weight(2f))
+                            GlideImage(
+                                imageModel = face,
+                                contentDescription = "Image",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f)
+                                    .clickable {
+                                        val storageRef =
+                                            Firebase.storage.getReference("$user/face/face0.png")
+                                        imageDelete(context, storageRef)
+                                        faceOnClick()
+                                    },
+                                contentScale = ContentScale.FillBounds
+                            )
+                            Spacer(modifier = Modifier.weight(2f))
+                        }
+                    } ?: Image(
                         painter = painterResource(id = R.drawable.character_face),
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxSize()
                             .weight(4f)
+                            .clickable {
+                                val cropOption = CropImageContractOptions(
+                                    CropImage.CancelledResult.uriContent,
+                                    CropImageOptions()
+                                )
+
+                                imageCropLauncher.launch(cropOption)
+                            }
                     )
 
+                    inputImage?.let { bitmap ->
+                        ImageSegmentation(
+                            inputImage = bitmap,
+                            onSegmentationComplete = { segmentedBitmap ->
+                                segmentedImage = segmentedBitmap
+                                showDialog = true
+                            }
+                        )
+                    }
+
+                    segmentedImage?.let { bitmap ->
+                        ImageUploadPopup(
+                            showDialog = showDialog,
+                            bitmap = bitmap,
+                            onUpload = {
+                                imageUpload(user, context, "face", 0, bitmap, onUpload)
+                                showDialog = false
+                                segmentedImage = null
+                            },
+                            onCancel = {
+                                showDialog = false
+                                segmentedImage = null
+                            }
+                        )
+                    }
 
                     //상의
                     clickedTop?.let { topUri ->
                         GlideImageView(
                             topUri, modifier = Modifier.weight(8f)
                         ) { topOnClick() }
-                    } ?: Image(
-                        painter = painterResource(id = R.drawable.character_top),
-                        contentDescription = null,
+                    } ?: Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .weight(8f),
-                        contentScale = ContentScale.FillBounds
-                    )
+                            .weight(8f)
+                    ) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        Image(
+                            painter = painterResource(id = R.drawable.character_top),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(6f),
+                            contentScale = ContentScale.FillBounds
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
 
                     //하의
                     clickedPants?.let { pantsUri ->
-                        GlideImageView(
-                            pantsUri, modifier = Modifier.weight(14f)
-                        ) { pantsOnClick() }
-                    } ?: Image(
-                        painter = painterResource(id = R.drawable.character_pants),
-                        contentDescription = null,
+                        Row(
+                            modifier = Modifier
+                                .weight(14f)
+                        ) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            GlideImageView(
+                                pantsUri, modifier = Modifier.weight(15f)
+                            ) { pantsOnClick() }
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    } ?:Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .weight(14f),
-                        contentScale = ContentScale.FillBounds
-                    )
+                            .weight(14f)
+                    ) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        Image(
+                            painter = painterResource(id = R.drawable.character_pants),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(6f),
+                            contentScale = ContentScale.FillBounds
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
 
 
                     //신발
                     clickedShoes?.let { shoesUri ->
-                        GlideImageView(
-                            shoesUri, modifier = Modifier.weight(2f)
-                        ) { shoesOnClick() }
-                    } ?: Image(
-                        painter = painterResource(id = R.drawable.character_shoes),
-                        contentDescription = null,
+                        Row(
+                            modifier = Modifier
+                                .weight(2f)
+                        ) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            GlideImageView(
+                                shoesUri, modifier = Modifier.weight(5f)
+                            ) { shoesOnClick() }
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    } ?: Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .weight(2f),
-                        contentScale = ContentScale.FillBounds
-                    )
+                            .weight(2f)
+                    ) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        Image(
+                            painter = painterResource(id = R.drawable.character_shoes),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(5f),
+                            contentScale = ContentScale.FillBounds
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
                 Spacer(modifier = Modifier.weight(1f))
             }
@@ -782,6 +970,16 @@ class ClosetActivity : ComponentActivity() {
         }
     }
 
+    private suspend fun getFace(user: String): String? {
+        val storageRef = Firebase.storage.reference.child("$user/face/face0.png")
+        var faceUri: String? = null
+        try {
+            faceUri = storageRef.downloadUrl.await().toString()
+        } catch (_: StorageException) {
+
+        }
+        return faceUri
+    }
     /**
      * Helper class for performing image segmentation using the SubjectSegmentation API.
      * This class encapsulates the functionality for obtaining foreground segmentation results from input images.
@@ -818,109 +1016,6 @@ class ClosetActivity : ComponentActivity() {
                     // Resume the coroutine with an exception in case of failure
                     it.resumeWithException(e)
                 }
-        }
-    }
-
-    /**
-     * Composable for the ImageSegmenterScreen, providing an interactive screen for image segmentation.
-     * Utilizes Jetpack Compose for UI components and integrates with the ImageSegmentationHelper for segmentation processing.
-     */
-    @Composable
-    fun ImageSegmenterScreen() {
-        val context = LocalContext.current
-
-        // State to hold the output bitmap after segmentation
-        val outputImage: MutableState<Bitmap?> = remember {
-            mutableStateOf<Bitmap?>(null)
-        }
-
-        // State to hold the input bitmap before segmentation
-        val inputImage: MutableState<Bitmap?> = remember {
-            mutableStateOf(null)
-        }
-
-        // ActivityResultLauncher for picking visual media from the device
-        val pickMedia = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.PickVisualMedia(),
-            // Callback for handling the result of media selection
-            onResult = { uri ->
-                if (uri != null) {
-                    // Load the selected image into the inputImage state
-                    inputImage.value =
-                        MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
-                } else {
-                    Log.d("PhotoPicker", "No media selected")
-                }
-            })
-
-        // State to track the loading status during image segmentation
-        var loading: Boolean by remember {
-            mutableStateOf(false)
-        }
-
-        // State to toggle between displaying the segmented result and the original image
-        var isOriginal: Boolean by remember {
-            mutableStateOf(false)
-        }
-
-        // Effect to trigger image segmentation when the input image changes
-        LaunchedEffect(key1 = inputImage.value) {
-            inputImage.value?.let { bitmap ->
-                // Set loading to true before starting the segmentation process
-                loading = true
-                // Perform image segmentation using ImageSegmentationHelper
-                val output = ImageSegmentationHelper.getResult(bitmap)
-                // Update the outputImage state with the segmented result
-                outputImage.value = output
-                // Set loading back to false after segmentation is complete
-                loading = false
-            }
-        }
-
-        // Scaffold composable for overall screen structure
-        Scaffold { paddingValues ->
-            Box(modifier = Modifier.background(Color.White)) {
-                // Row containing the "Open Gallery" button
-                Row(
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier
-                        .padding(paddingValues)
-                        .fillMaxWidth()
-                ) {
-                    Button(onClick = {
-                        // Launch the media picker to select an image from the gallery
-                        pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }) {
-                        Text(text = "Open Gallery")
-                    }
-                }
-                // Box containing the image display area and loading indicator
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    // Display the segmented result or original image based on the isOriginal state
-                    if (outputImage.value != null && inputImage.value != null) {
-                        Image(
-                            bitmap = if (!isOriginal) outputImage.value!!.asImageBitmap() else inputImage.value!!.asImageBitmap(),
-                            contentDescription = "",
-                            Modifier
-                                .fillMaxWidth()
-                                // Toggle isOriginal state on image click for comparison
-                                .clickable {
-                                    isOriginal = !isOriginal
-                                }
-                        )
-                    }
-
-                    // Display a loading indicator while image segmentation is in progress
-                    if (loading) {
-                        CircularProgressIndicator()
-                    }
-                }
-            }
         }
     }
 
