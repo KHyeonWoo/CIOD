@@ -59,6 +59,7 @@ import com.google.firebase.storage.ktx.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -118,7 +119,7 @@ class CalendarActivity : ComponentActivity() {
             ) {
                 CalendarWeekHeader()
 
-                //Outfit Of The Day 등록/삭제 시 화면 재구성을 위한 변수
+                // Outfit Of The Day 등록/삭제 시 화면 재구성을 위한 변수
                 var reLoad by remember { mutableIntStateOf(0) }
 
                 // 화면이 처음 켜질 때 reLoad를 증가시켜 자동으로 재구성하도록 설정
@@ -155,7 +156,7 @@ class CalendarActivity : ComponentActivity() {
         reLoad: Int,
         reLoadEvent: () -> Unit
     ) {
-        var dayFit by remember(month) { mutableStateOf<DAYFIT?>(null) }
+        var dayFit by remember(month, reLoad) { mutableStateOf<DAYFIT?>(null) }
         val coroutineScope = rememberCoroutineScope()
 
         LaunchedEffect(month, day, reLoad) {
@@ -204,7 +205,6 @@ class CalendarActivity : ComponentActivity() {
                             Color(0xFF50B4B0), RoundedCornerShape(10.dp)
                         )
                 )
-
             } else {
                 Text(text = "$day", fontSize = 16.sp)
             }
@@ -219,7 +219,6 @@ class CalendarActivity : ComponentActivity() {
 
             if (dayFit != null) {
                 Column {
-
                     Image(
                         painter = rememberAsyncImagePainter(dayFit?.top),
                         contentDescription = null,
@@ -236,7 +235,7 @@ class CalendarActivity : ComponentActivity() {
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(2f)
+                            .weight(3f)
                             .clickable {
                                 openDialog = true
                             },
@@ -255,7 +254,13 @@ class CalendarActivity : ComponentActivity() {
                     )
 
                     if (openDialog) {
-                        CharacterFit(user, dayFit, year, month, day, { openDialog = false },
+                        CharacterFit(
+                            user,
+                            dayFit,
+                            year,
+                            month,
+                            day,
+                            { openDialog = false },
                             { reLoadEvent() })
                     }
                 }
@@ -268,7 +273,13 @@ class CalendarActivity : ComponentActivity() {
                         })
 
                     if (openDialog) {
-                        CharacterFit(user, null, year, month, day, { openDialog = false },
+                        CharacterFit(
+                            user,
+                            null,
+                            year,
+                            month,
+                            day,
+                            { openDialog = false },
                             { reLoadEvent() })
                     }
                 }
@@ -494,25 +505,33 @@ class CalendarActivity : ComponentActivity() {
                             }
                         } else {
                             Button(onClick = {
-                                Firebase.firestore.collection("TheDayFit")
-                                    .document("$user$year$month$day")
-                                    .delete()
-                                    .addOnSuccessListener {
-                                        Toast.makeText(
-                                            context,
-                                            "DayFit 삭제 성공",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    try {
+                                        Firebase.firestore.collection("theDayFit")
+                                            .document("$user$year$month$day")
+                                            .delete()
+                                            .await()
+
+                                        // 성공 메시지를 메인 스레드에서 Toast로 표시
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(
+                                                context,
+                                                "Day Fit 삭제 성공",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
                                         reLoadEvent()
                                         close()
+                                    } catch (e: Exception) {
+                                        // 예외 발생 시 Toast로 에러 메시지를 표시
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(
+                                                context,
+                                                e.toString(), Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
                                     }
-                                    .addOnFailureListener { e ->
-                                        Toast.makeText(
-                                            context,
-                                            e.toString(),
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
+                                }
                             }) {
                                 Text(text = "삭제")
                             }
@@ -630,7 +649,10 @@ class CalendarActivity : ComponentActivity() {
 
     @Composable
     fun ClothDragBox(
-        modifier: Modifier, dayFitCloth: String?, clothItems: List<Uri>, getIdx: (Int) -> Unit
+        modifier: Modifier,
+        dayFitCloth: String?,
+        clothItems: List<Uri>,
+        getIdx: (Int) -> Unit
     ) {
         var direction by remember { mutableIntStateOf(-1) }
         var offsetX by remember { mutableFloatStateOf(0f) }

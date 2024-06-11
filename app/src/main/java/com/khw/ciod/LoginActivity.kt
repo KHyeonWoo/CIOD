@@ -130,6 +130,7 @@ class LoginActivity : ComponentActivity() {
                                     if (user != null) {
                                         userIntent.putExtra("user", email)
                                     }
+                                    password = ""
                                     context.startActivity(userIntent)
                                 } else {
                                     // If sign in fails, display a message to the user.
@@ -154,28 +155,6 @@ class LoginActivity : ComponentActivity() {
                 }
             }
 
-        }
-    }
-
-    private fun createAccount(email: String, password: String, auth: FirebaseAuth?) {
-
-
-        if (email.isNotEmpty() && password.isNotEmpty()) {
-            auth?.createUserWithEmailAndPassword(email, password)
-                ?.addOnCompleteListener(this) { task ->
-                    if (task.isSuccessful) {
-                        Toast.makeText(
-                            this, "계정 생성 완료.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        finish() // 가입창 종료
-                    } else {
-                        Toast.makeText(
-                            this, "계정 생성 실패",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
         }
     }
 }

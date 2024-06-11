@@ -30,6 +30,9 @@
         <activity android:name=".SignUpActivity" />
         <activity android:name=".CalendarActivity" />
         <activity android:name=".ClosetActivity" />
+        <activity
+            android:name="com.google.android.gms.oss.licenses.OssLicensesMenuActivity"
+            android:theme="@style/Theme.AppCompat" />
     </application>
 
 </manifest>
