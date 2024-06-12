@@ -52,10 +52,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
+import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -217,42 +217,50 @@ class CalendarActivity : ComponentActivity() {
         ) {
             var openDialog by remember { mutableStateOf(false) }
 
-            if (dayFit != null) {
+            dayFit?.let {
                 Column {
-                    Image(
-                        painter = rememberAsyncImagePainter(dayFit?.top),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(2f)
-                            .clickable {
-                                openDialog = true
-                            },
-                        contentScale = ContentScale.FillBounds
-                    )
-                    Image(
-                        painter = rememberAsyncImagePainter(dayFit?.pants),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(3f)
-                            .clickable {
-                                openDialog = true
-                            },
-                        contentScale = ContentScale.FillBounds
-                    )
-                    Image(
-                        painter = rememberAsyncImagePainter(dayFit?.shoes),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .clickable {
-                                openDialog = true
-                            },
-                        contentScale = ContentScale.FillBounds
-                    )
 
+                    it.top?.let { topUri ->
+                        GlideImage(
+                            imageModel = topUri,
+                            contentDescription = "Image",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(2f)
+                                .clickable {
+                                    openDialog = true
+                                },
+                            contentScale = ContentScale.FillBounds
+                        )
+                    }
+
+                    it.pants?.let { pantsUri ->
+                        GlideImage(
+                            imageModel = pantsUri,
+                            contentDescription = "Image",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(3f)
+                                .clickable {
+                                    openDialog = true
+                                },
+                            contentScale = ContentScale.FillBounds
+                        )
+                    }
+
+                    it.shoes?.let { shoesUri ->
+                        GlideImage(
+                            imageModel = shoesUri,
+                            contentDescription = "Image",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .clickable {
+                                    openDialog = true
+                                },
+                            contentScale = ContentScale.FillBounds
+                        )
+                    }
                     if (openDialog) {
                         CharacterFit(
                             user,
@@ -263,25 +271,24 @@ class CalendarActivity : ComponentActivity() {
                             { openDialog = false },
                             { reLoadEvent() })
                     }
-                }
-            } else {
-                Column {
-                    Spacer(modifier = Modifier
-                        .fillMaxSize()
-                        .clickable {
-                            openDialog = true
-                        })
 
-                    if (openDialog) {
-                        CharacterFit(
-                            user,
-                            null,
-                            year,
-                            month,
-                            day,
-                            { openDialog = false },
-                            { reLoadEvent() })
-                    }
+                }
+            } ?: Column {
+                Spacer(modifier = Modifier
+                    .fillMaxSize()
+                    .clickable {
+                        openDialog = true
+                    })
+
+                if (openDialog) {
+                    CharacterFit(
+                        user,
+                        null,
+                        year,
+                        month,
+                        day,
+                        { openDialog = false },
+                        { reLoadEvent() })
                 }
             }
         }
@@ -705,17 +712,11 @@ class CalendarActivity : ComponentActivity() {
             Divider(
                 color = Color.White, modifier = Modifier.fillMaxSize()
             )
-
-            Image(painter = dayFitCloth?.let { rememberAsyncImagePainter(it) }
-                ?: rememberAsyncImagePainter(clothItems[clothIdx]),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.FillBounds)
+            GlideImage(
+                imageModel = dayFitCloth ?: clothItems[clothIdx],
+                contentDescription = "Image",
+                contentScale = ContentScale.FillBounds
+            )
         }
     }
-
-    /**
-     * Helper class for performing image segmentation using the SubjectSegmentation API.
-     * This class encapsulates the functionality for obtaining foreground segmentation results from input images.
-     */
 }

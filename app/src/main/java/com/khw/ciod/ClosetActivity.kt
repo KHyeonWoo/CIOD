@@ -35,7 +35,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,7 +55,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import coil.compose.rememberAsyncImagePainter
 import com.canhub.cropper.CropImage
 import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
@@ -309,7 +307,7 @@ class ClosetActivity : ComponentActivity() {
     }
 
     private @Composable
-    fun GlideImageView(item: String, modifier: Modifier, imageOnClick: () -> Unit) {
+    fun GlideImageView(clothUri: String, modifier: Modifier, imageOnClick: () -> Unit) {
 
         Row(
             modifier = modifier
@@ -317,7 +315,7 @@ class ClosetActivity : ComponentActivity() {
         ) {
             Spacer(modifier = Modifier.weight(1f))
             GlideImage(
-                imageModel = item,
+                imageModel = clothUri,
                 contentDescription = "Image",
                 modifier = Modifier
                     .fillMaxSize()
@@ -617,7 +615,6 @@ class ClosetActivity : ComponentActivity() {
             }
         }
     }
-
     @Composable
     private fun Character(
         modifier: Modifier,
@@ -632,240 +629,267 @@ class ClosetActivity : ComponentActivity() {
         faceOnClick: () -> Unit,
         onUpload: () -> Unit
     ) {
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.closetbackground),
-                contentDescription = "background",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.FillBounds
-            )
-            Divider(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(80.dp),
-                color = Color(0xFFEDF3F5)
-            )
-            Image(
-                painter = painterResource(id = R.drawable.charactershadow),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(320.dp, 56.dp)
-                    .align(Alignment.BottomCenter),
-                contentScale = ContentScale.FillBounds
-            )
-            Row(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Spacer(modifier = Modifier.weight(1f))
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(6f)
-                ) {
-
-                    //얼굴에 이미지 업로드 이벤트 추가
-
-                    val context = LocalContext.current
-
-                    var inputImage by remember { mutableStateOf<Bitmap?>(null) }
-                    var segmentedImage by remember { mutableStateOf<Bitmap?>(null) }
-                    var showDialog by remember { mutableStateOf(false) }
-
-                    val imageCropLauncher =
-                        rememberLauncherForActivityResult(CropImageContract()) { result ->
-                            if (result.isSuccessful) {
-                                val bitmap =
-                                    MediaStore.Images.Media.getBitmap(
-                                        context.contentResolver,
-                                        result.uriContent
-                                    )
-                                inputImage = bitmap
-                            } else {
-                                Log.d("PhotoPicker", "No media selected")
-                            }
-                        }
-
-                    //얼굴
-                    faceUri?.let { face ->
-                        Row(
-                            modifier = Modifier
-                                .weight(4f)
-                        ) {
-                            Spacer(modifier = Modifier.weight(2f))
-                            GlideImage(
-                                imageModel = face,
-                                contentDescription = "Image",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .weight(1f)
-                                    .clickable {
-                                        val storageRef =
-                                            Firebase.storage.getReference("$user/face/face0.png")
-                                        imageDelete(context, storageRef)
-                                        faceOnClick()
-                                    },
-                                contentScale = ContentScale.FillBounds
-                            )
-                            Spacer(modifier = Modifier.weight(2f))
-                        }
-                    } ?: Image(
-                        painter = painterResource(id = R.drawable.character_face),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(4f)
-                            .clickable {
-                                val cropOption = CropImageContractOptions(
-                                    CropImage.CancelledResult.uriContent,
-                                    CropImageOptions()
-                                )
-
-                                imageCropLauncher.launch(cropOption)
-                            }
-                    )
-
-                    inputImage?.let { bitmap ->
-                        ImageSegmentation(
-                            inputImage = bitmap,
-                            onSegmentationComplete = { segmentedBitmap ->
-                                segmentedImage = segmentedBitmap
-                                showDialog = true
-                            }
-                        )
-                    }
-
-                    segmentedImage?.let { bitmap ->
-                        ImageUploadPopup(
-                            showDialog = showDialog,
-                            bitmap = bitmap,
-                            onUpload = {
-                                imageUpload(user, context, "face", 0, bitmap, onUpload)
-                                showDialog = false
-                                segmentedImage = null
-                            },
-                            onCancel = {
-                                showDialog = false
-                                segmentedImage = null
-                            }
-                        )
-                    }
-
-                    //상의
-                    clickedTop?.let { topUri ->
-                        GlideImageView(
-                            topUri, modifier = Modifier.weight(8f)
-                        ) { topOnClick() }
-                    } ?: Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(8f)
-                    ) {
-                        Spacer(modifier = Modifier.weight(1f))
-                        Image(
-                            painter = painterResource(id = R.drawable.character_top),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(6f),
-                            contentScale = ContentScale.FillBounds
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-
-                    //하의
-                    clickedPants?.let { pantsUri ->
-                        Row(
-                            modifier = Modifier
-                                .weight(14f)
-                        ) {
-                            Spacer(modifier = Modifier.weight(1f))
-                            GlideImageView(
-                                pantsUri, modifier = Modifier.weight(15f)
-                            ) { pantsOnClick() }
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    } ?:Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(14f)
-                    ) {
-                        Spacer(modifier = Modifier.weight(1f))
-                        Image(
-                            painter = painterResource(id = R.drawable.character_pants),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(6f),
-                            contentScale = ContentScale.FillBounds
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-
-
-                    //신발
-                    clickedShoes?.let { shoesUri ->
-                        Row(
-                            modifier = Modifier
-                                .weight(2f)
-                        ) {
-                            Spacer(modifier = Modifier.weight(1f))
-                            GlideImageView(
-                                shoesUri, modifier = Modifier.weight(5f)
-                            ) { shoesOnClick() }
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    } ?: Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(2f)
-                    ) {
-                        Spacer(modifier = Modifier.weight(1f))
-                        Image(
-                            painter = painterResource(id = R.drawable.character_shoes),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(5f),
-                            contentScale = ContentScale.FillBounds
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-                Spacer(modifier = Modifier.weight(1f))
+        Box(modifier = modifier.fillMaxSize()) {
+            BackgroundImage()
+            Column(modifier = Modifier.align(Alignment.BottomCenter)) {
+                BottomDivider()
+                CharacterShadow()
             }
-            val context = LocalContext.current
-            Column(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
+            CharacterContent(
+                modifier = modifier,
+                user = user,
+                faceUri = faceUri,
+                clickedTop = clickedTop,
+                clickedPants = clickedPants,
+                clickedShoes = clickedShoes,
+                topOnClick = topOnClick,
+                pantsOnClick = pantsOnClick,
+                shoesOnClick = shoesOnClick,
+                faceOnClick = faceOnClick,
+                onUpload = onUpload
+            )
+            CalendarIcon(Modifier.align(Alignment.TopEnd), user)
+        }
+    }
 
-            ) {
-                Image(painter = painterResource(id = R.drawable.calendaricon),
-                    contentDescription = "calendar",
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clickable {
-                            val userIntent = Intent(context, CalendarActivity::class.java)
-                            userIntent.putExtra("user", user)
-                            context.startActivity(userIntent)
-                        })
-                Text(
-                    text = LocalDate.now().month.toString()
-                        .substring(0, 3) + "  " + LocalDate.now().dayOfMonth.toString(),
-                    fontSize = 12.sp, textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
+    @Composable
+    private fun BackgroundImage() {
+        Image(
+            painter = painterResource(id = R.drawable.closetbackground),
+            contentDescription = "background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
+        )
+    }
+
+    @Composable
+    private fun BottomDivider() {
+        Divider(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp),
+            color = Color(0xFFEDF3F5)
+        )
+    }
+
+    @Composable
+    private fun CharacterShadow() {
+        Image(
+            painter = painterResource(id = R.drawable.charactershadow),
+            contentDescription = null,
+            modifier = Modifier
+                .size(320.dp, 56.dp),
+            contentScale = ContentScale.FillBounds
+        )
+    }
+
+    @Composable
+    private fun CharacterContent(
+        modifier: Modifier,
+        user: String,
+        faceUri: String?,
+        clickedTop: String?,
+        clickedPants: String?,
+        clickedShoes: String?,
+        topOnClick: () -> Unit,
+        pantsOnClick: () -> Unit,
+        shoesOnClick: () -> Unit,
+        faceOnClick: () -> Unit,
+        onUpload: () -> Unit
+    ) {
+        Row(modifier = modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.weight(1f))
+            Column(modifier = Modifier
+                .fillMaxSize()
+                .weight(6f)) {
+                FaceSection(modifier = Modifier.weight(2f), modifier1 = Modifier.weight(4f), faceUri, user, faceOnClick, onUpload)
+                TopSection(Modifier.weight(8f), clickedTop, topOnClick)
+                PantsSection(Modifier.weight(14f), clickedPants, pantsOnClick)
+                ShoesSection(Modifier.weight(2f), clickedShoes, shoesOnClick)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+
+    @Composable
+    private fun FaceSection(
+        modifier: Modifier,
+        modifier1: Modifier,
+        faceUri: String?,
+        user: String,
+        faceOnClick: () -> Unit,
+        onUpload: () -> Unit
+    ) {
+        val context = LocalContext.current
+        var inputImage by remember { mutableStateOf<Bitmap?>(null) }
+        var segmentedImage by remember { mutableStateOf<Bitmap?>(null) }
+        var showDialog by remember { mutableStateOf(false) }
+
+        val imageCropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
+            if (result.isSuccessful) {
+                val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, result.uriContent)
+                inputImage = bitmap
+            } else {
+                Log.d("PhotoPicker", "No media selected")
             }
         }
 
+        faceUri?.let { face ->
+            FaceImage(modifier, face, user, faceOnClick)
+        } ?: FacePlaceholder (modifier1){ imageCropLauncher.launch(CropImageContractOptions(CropImage.CancelledResult.uriContent, CropImageOptions())) }
+
+        inputImage?.let { bitmap ->
+            ImageSegmentation(inputImage = bitmap, onSegmentationComplete = { segmentedBitmap ->
+                segmentedImage = segmentedBitmap
+                showDialog = true
+            })
+        }
+
+        segmentedImage?.let { bitmap ->
+            ImageUploadPopup(showDialog = showDialog, bitmap = bitmap, onUpload = {
+                imageUpload(user, context, "face", 0, bitmap, onUpload)
+                showDialog = false
+                segmentedImage = null
+            }, onCancel = {
+                showDialog = false
+                segmentedImage = null
+            })
+        }
     }
 
-    private @Composable
-    fun ImagePopup(
+    @Composable
+    private fun FaceImage(modifier: Modifier, face: String, user: String, faceOnClick: () -> Unit) {
+        val context = LocalContext.current
+        Row(modifier = modifier) {
+            Spacer(modifier = Modifier.weight(2f))
+            GlideImage(
+                imageModel = face,
+                contentDescription = "Image",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+                    .clickable {
+                        val storageRef = Firebase.storage.getReference("$user/face/face0.png")
+                        imageDelete(context, storageRef)
+                        faceOnClick()
+                    },
+                contentScale = ContentScale.FillBounds
+            )
+            Spacer(modifier = Modifier.weight(2f))
+        }
+    }
+
+    @Composable
+    private fun FacePlaceholder(modifier: Modifier, onClick: () -> Unit) {
+        Image(
+            painter = painterResource(id = R.drawable.character_face),
+            contentDescription = null,
+            modifier = modifier
+                .fillMaxSize()
+                .clickable { onClick() }
+        )
+    }
+
+    @Composable
+    private fun TopSection(modifier: Modifier, clickedTop: String?, topOnClick: () -> Unit) {
+        clickedTop?.let { topUri ->
+            GlideImageView(topUri, modifier = modifier) { topOnClick() }
+        } ?: Row(modifier = modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.weight(1f))
+            Image(
+                painter = painterResource(id = R.drawable.character_top),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(6f),
+                contentScale = ContentScale.FillBounds
+            )
+            Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+
+    @Composable
+    private fun PantsSection(
+        modifier: Modifier,
+        clickedPants: String?,
+        pantsOnClick: () -> Unit
+    ) {
+        clickedPants?.let { pantsUri ->
+            Row(modifier = modifier) {
+                Spacer(modifier = Modifier.weight(1f))
+                GlideImageView(pantsUri, modifier = Modifier.weight(15f)) { pantsOnClick() }
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        } ?: Row(modifier = modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.weight(1f))
+            Image(
+                painter = painterResource(id = R.drawable.character_pants),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(6f),
+                contentScale = ContentScale.FillBounds
+            )
+            Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+
+    @Composable
+    private fun ShoesSection(
+        modifier: Modifier,
+        clickedShoes: String?,
+        shoesOnClick: () -> Unit
+    ) {
+        clickedShoes?.let { shoesUri ->
+            Row(modifier = modifier) {
+                Spacer(modifier = Modifier.weight(1f))
+                GlideImageView(shoesUri, modifier = Modifier.weight(5f)) { shoesOnClick() }
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        } ?: Row(modifier = modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.weight(1f))
+            Image(
+                painter = painterResource(id = R.drawable.character_shoes),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(5f),
+                contentScale = ContentScale.FillBounds
+            )
+            Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+
+    @Composable
+    private fun CalendarIcon(modifier: Modifier, user: String) {
+        val context = LocalContext.current
+        Column(
+            modifier = modifier
+                .padding(16.dp)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.calendaricon),
+                contentDescription = "calendar",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clickable {
+                        val userIntent = Intent(context, CalendarActivity::class.java)
+                        userIntent.putExtra("user", user)
+                        context.startActivity(userIntent)
+                    }
+            )
+            Text(
+                text = LocalDate.now().month.toString().substring(0, 3) + "  " + LocalDate.now().dayOfMonth.toString(),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
+    }
+
+
+    @Composable
+    private fun ImagePopup(
         showDialog: Boolean,
         item: String?,
         clickedTopRef: StorageReference,

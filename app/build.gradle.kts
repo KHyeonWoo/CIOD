@@ -74,7 +74,6 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("com.firebaseui:firebase-ui-storage:7.2.0")
     implementation("com.github.skydoves:landscapist-glide:1.3.7")
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
