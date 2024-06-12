@@ -1,6 +1,5 @@
 - LoginActivity
-
-![image](https://github.com/KHyeonWoo/CIOD/assets/167736533/83b22bd3-050a-4fd4-a320-4a4b9ddc6c39)
+<img src="https://github.com/KHyeonWoo/CIOD/assets/167736533/83b22bd3-050a-4fd4-a320-4a4b9ddc6c39.png"  width="200" height="400"/>
 
 로그인 방식 : 이메일
 
@@ -28,14 +27,15 @@ https://github.com/AppcentMobile/removebg
 
 - CalendarActivity
 
-![image](https://github.com/KHyeonWoo/CIOD/assets/167736533/3271f6d0-1053-48c8-b402-b58e154b2c3f)
+<img src="https://github.com/KHyeonWoo/CIOD/assets/167736533/3271f6d0-1053-48c8-b402-b58e154b2c3f.png"  width="200" height="400"/>
 
 
 달력 : `fun CustomCalendarView()`
 
 Day Fit Image : `CalendarDayFit()`
 
-![image](https://github.com/KHyeonWoo/CIOD/assets/167736533/b985cddb-f846-473d-aab5-0178d47fd1e1)
+<img src="https://github.com/KHyeonWoo/CIOD/assets/167736533/b985cddb-f846-473d-aab5-0178d47fd1e1.png"  width="200" height="400"/>
+
 
 
 Dialog : `CharacterFit()`
