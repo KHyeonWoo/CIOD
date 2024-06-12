@@ -542,53 +542,6 @@ class ClosetActivity : ComponentActivity() {
     }
 
     @Composable
-    fun ImageUploadPopup(
-        showDialog: Boolean,
-        upLoad: () -> Unit,
-        cancel: () -> Unit,
-        bitmap: Bitmap
-    ) {
-        if (showDialog) {
-            Dialog(onDismissRequest = { cancel() }) {
-                Surface(
-                    shape = MaterialTheme.shapes.medium,
-                    tonalElevation = 24.dp
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(400.dp)
-                        ) {
-                            Image(
-                                painter = rememberAsyncImagePainter(bitmap),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(400.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Button(onClick = {
-                                upLoad()
-                                cancel()
-                            }) {
-                                Text(text = "등록")
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            TextButton(onClick = { cancel() }) {
-                                Text(text = "취소")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @Composable
     fun ImageGrid(
         user: String,
         category: String,

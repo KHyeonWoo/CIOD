@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,7 +70,7 @@ class LoginActivity : ComponentActivity() {
 
                 val context = LocalContext.current
                 var email: String by remember { mutableStateOf("altmen77@naver.com") }
-                var password: String by remember { mutableStateOf("hahaha") }
+                var password: String by remember { mutableStateOf("") }
                 Row(modifier = Modifier.align(Alignment.Center)) {
                     Spacer(modifier = Modifier.weight(1f))
                     Column(
@@ -87,8 +88,9 @@ class LoginActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth()
                         )
                         OutlinedTextField(
-                            value = "*".repeat(password.length),
+                            value = password,
                             onValueChange = { password = it },
+                            visualTransformation = PasswordVisualTransformation(),
                             label = { Text(text = "password") },
                             colors = TextFieldDefaults.outlinedTextFieldColors(
                                 focusedLabelColor = Color.Black,
@@ -143,6 +145,7 @@ class LoginActivity : ComponentActivity() {
                                     } else {
                                         // If sign in fails, display a message to the user.
                                         Log.w(TAG, "signInWithEmail:failure", task.exception)
+                                        
                                         Toast.makeText(
                                             baseContext,
                                             task.exception.toString(),
