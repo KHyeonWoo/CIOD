@@ -6,7 +6,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +20,7 @@ import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,24 +47,7 @@ class SignUpActivity : ComponentActivity() {
                     .fillMaxSize()
                     .background(color = Color.White)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.mainactivitybackgroundicon),
-                    contentDescription = "",
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(top = 56.dp)
-                        .size(240.dp, 400.dp)
-                )
-
-                Image(
-                    painter = painterResource(id = R.drawable.mainactivitybackgroundicon2),
-                    contentDescription = "",
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(bottom = 120.dp)
-                        .size(176.dp, 240.dp)
-                )
-
+                BackgroundScreen()
 
                 var email: String by remember { mutableStateOf("") }
                 var password: String by remember { mutableStateOf("") }
@@ -99,53 +81,58 @@ class SignUpActivity : ComponentActivity() {
                     }
                     Spacer(modifier = Modifier.weight(1f))
                 }
-                auth = Firebase.auth
-                val context = LocalContext.current
-                Button(
-                    onClick = {
-                        if (email.isEmpty() || password.isEmpty()) {
-
-                            Toast.makeText(
-                                baseContext,
-                                "이메일 / 비밀번호를 입력하세요",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        } else {
-                            auth.createUserWithEmailAndPassword(email, password)
-                                .addOnCompleteListener { task ->
-                                    if (task.isSuccessful) {
-                                        // Sign in success, update UI with the signed-in user's information
-                                        Toast.makeText(
-                                            context,
-                                            "회원가입 완료",
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
-                                        Log.d(TAG, "createUserWithEmail:success")
-                                        finish()
-                                    } else {
-                                        // If sign in fails, display a message to the user.
-                                        Log.w(TAG, "createUserWithEmail:failure", task.exception)
-                                        Toast.makeText(
-                                            context,
-                                            task.exception.toString(),
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
-                                    }
-                                }
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(40.dp)
-                        .size(280.dp, 50.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Black
-                    )
-                ) {
-                    Text(text = "회원가입", fontSize = 16.sp)
-                }
+                SignUpButton(Modifier.align(Alignment.BottomCenter), email, password)
             }
 
         }
+    }
+
+    @Composable
+    private fun SignUpButton(modifier: Modifier,email:String, password: String) {
+        auth = Firebase.auth
+        val context = LocalContext.current
+        Button(
+            onClick = {
+                if (email.isEmpty() || password.isEmpty()) {
+
+                    Toast.makeText(
+                        baseContext,
+                        "이메일 / 비밀번호를 입력하세요",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                } else {
+                    auth.createUserWithEmailAndPassword(email, password)
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                // Sign in success, update UI with the signed-in user's information
+                                Toast.makeText(
+                                    context,
+                                    "회원가입 완료",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                                Log.d(TAG, "createUserWithEmail:success")
+                                finish()
+                            } else {
+                                // If sign in fails, display a message to the user.
+                                Log.w(TAG, "createUserWithEmail:failure", task.exception)
+                                Toast.makeText(
+                                    context,
+                                    task.exception.toString(),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                }
+            },
+            modifier = modifier
+                .padding(40.dp)
+                .size(280.dp, 50.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Black
+            )
+        ) {
+            Text(text = "회원가입", fontSize = 16.sp)
+        }
+
     }
 }
